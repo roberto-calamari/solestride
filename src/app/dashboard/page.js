@@ -1,226 +1,121 @@
 'use client';
-
 import { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
-import { SkillBar, RadarChart, BuildArt, BottomNav, LoadingScreen, OrnamentDivider, SKILL_META } from '../../components/ui';
+
+const SKILL_COLORS = { velocity: '#f0c868', endurance: '#68a878', ascent: '#a08060', stamina: '#d06050', cadence: '#9878b0', fortitude: '#7090a8', resilience: '#c09050', ranging: '#58a0a8' };
+const SKILL_ICONS = { velocity: '⚡', endurance: '🛤', ascent: '⛰', stamina: '♥', cadence: '👟', fortitude: '📅', resilience: '🔁', ranging: '🧭' };
 
 export default function Dashboard() {
   const [data, setData] = useState(null);
-  const [loading, setLoading] = useState(true);
   const [syncing, setSyncing] = useState(false);
-  const [syncProgress, setSyncProgress] = useState(null);
-  const router = useRouter();
+  const [syncMsg, setSyncMsg] = useState('');
+  const [error, setError] = useState('');
 
-  useEffect(() => {
-    fetchProfile();
-  }, []);
+  useEffect(() => { fetchData(); }, []);
 
-  async function fetchProfile() {
+  async function fetchData() {
     try {
-      const res = await fetch('/api/user?section=profile');
-      if (res.status === 401) {
-        router.push('/');
-        return;
-      }
-      const json = await res.json();
-      setData(json);
-      
-      // If no sync has happened, prompt sync
-      if (json.syncStatus?.status === 'none') {
-        setSyncProgress({ status: 'needs_sync' });
-      }
-    } catch (e) {
-      console.error('Failed to load profile:', e);
-    } finally {
-      setLoading(false);
-    }
+      const res = await fetch('/api/user');
+      if (res.status === 401) { window.location.href = '/'; return; }
+      const d = await res.json();
+      setData(d);
+    } catch (e) { setError(e.message); }
   }
 
-  async function startSync() {
-    setSyncing(true);
-    setSyncProgress({ status: 'running', imported: 0, total: 0 });
-    
+  async function doSync() {
+    setSyncing(true); setSyncMsg('Importing from Strava...'); setError('');
     try {
       const res = await fetch('/api/sync', { method: 'POST' });
-      const result = await res.json();
-      setSyncProgress(result);
-      
-      if (result.status === 'completed') {
-        // Refresh profile
-        await fetchProfile();
+      const d = await res.json();
+      if (d.status === 'completed') {
+        setSyncMsg('Import complete! ' + (d.activityCount || 0) + ' runs scored.');
+        setTimeout(() => { setSyncing(false); fetchData(); }, 1500);
+      } else {
+        setError(d.error || 'Sync failed'); setSyncing(false);
       }
-    } catch (e) {
-      setSyncProgress({ status: 'failed', error: e.message });
-    } finally {
-      setSyncing(false);
-    }
+    } catch (e) { setError(e.message); setSyncing(false); }
   }
 
-  if (loading) return <LoadingScreen message="Loading your codex..." />;
+  const cs = {
+    page: { minHeight: '100vh', background: '#110e0a', color: '#ddd0b8', fontFamily: "'Cormorant Garamond', serif", padding: '24px 16px 40px', maxWidth: 430, margin: '0 auto' },
+    card: { background: 'rgba(30,25,19,.9)', border: '1px solid rgba(170,140,80,.09)', borderRadius: 3, padding: '14px 16px', marginBottom: 10 },
+    label: { fontFamily: "'Cinzel', serif", fontSize: 9, fontWeight: 600, color: '#685e4e', textTransform: 'uppercase', letterSpacing: 4, marginBottom: 5 },
+    title: { fontSize: 26, fontWeight: 600, marginBottom: 2 },
+    tier: { fontFamily: "'Cinzel', serif", fontSize: 7.5, fontWeight: 600, color: '#e8c050', background: 'rgba(232,192,80,.1)', padding: '3px 10px', borderRadius: 2, textTransform: 'uppercase', letterSpacing: 2, border: '1px solid rgba(232,192,80,.12)', display: 'inline-block', marginLeft: 8 },
+    sub: { fontSize: 14, color: '#685e4e', fontStyle: 'italic', marginTop: 5 },
+    btn: { display: 'block', width: '100%', padding: '14px 24px', borderRadius: 3, border: 'none', cursor: 'pointer', background: 'rgba(232,192,80,.1)', color: '#e8c050', fontFamily: "'Cinzel', serif", fontSize: 12, fontWeight: 600, letterSpacing: 2, textTransform: 'uppercase', marginTop: 12 },
+    syncBtn: { display: 'block', width: '100%', padding: '14px 24px', borderRadius: 3, border: 'none', cursor: 'pointer', background: 'linear-gradient(135deg, #fc4c02, #e84400)', color: '#fff', fontFamily: "'DM Sans', sans-serif", fontSize: 14, fontWeight: 600 },
+    score: { fontFamily: "'IBM Plex Mono', monospace", fontSize: 12, color: '#e8c050' },
+    bar: { height: 5, background: 'rgba(60,48,30,.6)', borderRadius: 1, marginTop: 4, border: '1px solid rgba(100,80,50,.12)', overflow: 'hidden' },
+    desc: { fontSize: 13.5, lineHeight: 1.7, color: '#b0a088', fontFamily: "'DM Sans', sans-serif" },
+    err: { padding: '10px 16px', background: 'rgba(180,50,50,.15)', border: '1px solid rgba(180,50,50,.25)', color: '#c04040', borderRadius: 3, fontSize: 13, fontFamily: "'DM Sans', sans-serif", marginBottom: 10 },
+  };
 
-  // First-time sync prompt
-  if (!data?.currentBuild) {
-    return (
-      <div className="min-h-dvh px-5 pt-12 pb-28 safe-top">
-        <div className="text-center mb-10 page-enter">
-          <h1 className="font-display text-2xl text-[#d4a832] tracking-wider mb-2">SOLESTRIDE</h1>
-          <p className="text-[#a09080] text-sm">
-            Welcome, {data?.user?.strava_firstname || 'Runner'}.
-          </p>
-        </div>
+  if (!data) return <div style={cs.page}><p style={{ color: '#685e4e' }}>Loading...</p></div>;
 
-        {syncProgress?.status === 'running' ? (
-          <div className="card-dark p-6 text-center page-enter">
-            <div className="loading-pulse text-[#d4a832] text-4xl mb-4">⚔</div>
-            <p className="font-display text-sm text-[#e8dcc8] mb-2">Importing your history...</p>
-            <p className="text-[#6a5e52] text-xs">
-              {syncProgress.imported || 0} activities imported
-            </p>
-            <div className="mt-4 h-1 bg-[#282420] rounded-full overflow-hidden">
-              <div className="h-full bg-[#d4a832] rounded-full transition-all duration-500"
-                   style={{ width: `${syncProgress.total ? (syncProgress.imported / syncProgress.total * 100) : 10}%` }} />
-            </div>
-            <p className="text-[#4a4038] text-xs mt-3">
-              This may take a few minutes for large histories.
-              Your session is preserved if it pauses.
-            </p>
-          </div>
-        ) : syncProgress?.status === 'completed' ? (
-          <div className="card-dark p-6 text-center page-enter">
-            <p className="text-[#5a8a6e] text-lg mb-2">✓ Import complete</p>
-            <p className="text-[#a09080] text-sm">Refreshing your profile...</p>
-          </div>
-        ) : syncProgress?.status === 'failed' ? (
-          <div className="card-dark p-6 text-center page-enter">
-            <p className="text-[#c94444] text-sm mb-3">Sync encountered an issue</p>
-            <p className="text-[#6a5e52] text-xs mb-4">{syncProgress.error}</p>
-            <button onClick={startSync} className="px-6 py-2 rounded-lg bg-[#282420] text-[#d4a832] font-display text-sm">
-              Retry
-            </button>
-          </div>
-        ) : (
-          <div className="card-dark p-6 text-center page-enter">
-            <p className="text-[#a09080] text-sm mb-4">
-              Import your full Strava run history to reconstruct your build evolution
-              from your very first logged run.
-            </p>
-            <button
-              onClick={startSync}
-              disabled={syncing}
-              className="px-8 py-3 rounded-lg bg-gradient-to-r from-[#d4a832] to-[#b08820]
-                         text-[#0e0c0a] font-display font-semibold tracking-wider
-                         active:scale-[0.97] transition-transform disabled:opacity-50"
-            >
-              {syncing ? 'Syncing...' : 'Sync with Strava'}
-            </button>
-          </div>
-        )}
-
-        <BottomNav />
-      </div>
-    );
-  }
-
-  const { currentBuild, currentSkills, user, activityCount } = data;
-  const skills = currentSkills || {};
-  const build = currentBuild;
+  const hasBuild = data.currentBuild && data.currentSkills;
 
   return (
-    <div className="min-h-dvh px-5 pt-8 pb-28 safe-top">
-      {/* Header */}
-      <div className="flex items-center justify-between mb-6 page-enter">
-        <div>
-          <p className="text-[#6a5e52] text-xs font-display tracking-widest uppercase">Active Build</p>
-          <h1 className="font-display text-xl text-[#e8dcc8] tracking-wide mt-1">
-            {build?.full_name || 'Unknown'}
-          </h1>
-        </div>
-        <button
-          onClick={startSync}
-          disabled={syncing}
-          className="px-3 py-1.5 rounded-md bg-[#282420] text-[#d4a832] text-xs font-display
-                     active:scale-95 transition-transform disabled:opacity-50"
-        >
-          {syncing ? '...' : 'Sync'}
-        </button>
-      </div>
+    <div style={cs.page}>
+      {error && <div style={cs.err}>{error}</div>}
 
-      {/* Build Art */}
-      <div className="flex justify-center mb-6 page-enter" style={{ animationDelay: '0.1s' }}>
-        <div className="relative">
-          <BuildArt artParams={build?.art_params} size={200} />
-          {/* Tier badge */}
-          <div className="absolute -bottom-2 left-1/2 -translate-x-1/2 px-3 py-1 rounded-full
-                          bg-[#0e0c0a] border border-[#d4a832]/20">
-            <span className="font-display text-[10px] text-[#d4a832] tracking-widest uppercase">
-              {build?.tier || 'Unknown'}
-            </span>
+      {!hasBuild ? (
+        <div>
+          <div style={{ textAlign: 'center', marginTop: 40 }}>
+            <h1 style={{ fontFamily: "'Cinzel', serif", fontSize: 24, color: '#e8c050', letterSpacing: 4, marginBottom: 8 }}>SOLESTRIDE</h1>
+            <p style={{ color: '#685e4e', marginBottom: 4 }}>Welcome, {data.user?.strava_firstname || 'Runner'}.</p>
+          </div>
+          <div style={{ ...cs.card, textAlign: 'center', padding: '24px 16px', marginTop: 24 }}>
+            <p style={{ ...cs.desc, marginBottom: 16 }}>Import your full Strava run history to reconstruct your build evolution from your very first logged run.</p>
+            {syncing ? (
+              <div>
+                <div style={cs.bar}><div style={{ height: '100%', background: 'linear-gradient(90deg, rgba(232,192,80,.4), #e8c050)', animation: 'pulse 1.5s ease-in-out infinite', width: '60%' }} /></div>
+                <p style={{ color: '#685e4e', fontSize: 12, fontFamily: "'DM Sans', sans-serif", marginTop: 8 }}>{syncMsg}</p>
+              </div>
+            ) : (
+              <button style={cs.syncBtn} onClick={doSync}>Sync with Strava</button>
+            )}
           </div>
         </div>
-      </div>
+      ) : (
+        <div>
+          <div style={cs.label}>Active Build</div>
+          <div style={{ display: 'flex', alignItems: 'baseline', flexWrap: 'wrap', marginBottom: 2 }}>
+            <h1 style={cs.title}>{data.currentBuild.fullName}</h1>
+            <span style={cs.tier}>{data.currentBuild.modifier}</span>
+          </div>
+          <p style={cs.sub}>{data.currentBuild.tierName} tier · {data.currentBuild.archetypeName} archetype</p>
 
-      {/* Lore card */}
-      <div className="card-dark p-4 mb-6 page-enter" style={{ animationDelay: '0.2s' }}>
-        <p className="text-[#a09080] text-sm leading-relaxed italic">
-          "{build?.lore_text}"
-        </p>
-      </div>
+          <div style={{ ...cs.card, marginTop: 16 }}>
+            <p style={cs.desc}>{data.currentBuild.description}</p>
+          </div>
 
-      {/* Radar chart */}
-      <div className="page-enter" style={{ animationDelay: '0.3s' }}>
-        <RadarChart skills={skills} size={260} />
-      </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 14, margin: '28px 0 16px' }}>
+            <div style={{ flex: 1, height: 1, background: 'linear-gradient(to right, transparent, rgba(170,140,80,.1), transparent)' }} />
+            <span style={{ fontFamily: "'Cinzel', serif", fontSize: 8, fontWeight: 600, color: '#685e4e', textTransform: 'uppercase', letterSpacing: 5 }}>Skills</span>
+            <div style={{ flex: 1, height: 1, background: 'linear-gradient(to right, transparent, rgba(170,140,80,.1), transparent)' }} />
+          </div>
 
-      <OrnamentDivider>Skills</OrnamentDivider>
+          {Object.entries(data.currentSkills).map(([key, skill]) => (
+            <div key={key} style={{ marginBottom: 14 }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
+                <span style={{ fontFamily: "'Cinzel', serif", fontSize: 10, fontWeight: 600, color: '#b0a088', textTransform: 'uppercase', letterSpacing: 2 }}>{SKILL_ICONS[key]} {key}</span>
+                <span style={cs.score}>{skill.score}</span>
+              </div>
+              <div style={cs.bar}>
+                <div style={{ height: '100%', width: skill.score + '%', background: `linear-gradient(90deg, ${SKILL_COLORS[key]}44, ${SKILL_COLORS[key]})`, transition: 'width 1s ease' }} />
+              </div>
+            </div>
+          ))}
 
-      {/* Skill bars */}
-      <div className="space-y-4 page-enter" style={{ animationDelay: '0.4s' }}>
-        {Object.entries(SKILL_META).map(([key, meta], i) => (
-          <SkillBar
-            key={key}
-            skill={key}
-            score={skills[key]?.score || 0}
-            delay={i * 80}
-            onClick={() => router.push(`/skills/${key}`)}
-          />
-        ))}
-      </div>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 8, marginTop: 16 }}>
+            <div style={{ ...cs.card, textAlign: 'center', padding: '10px 8px' }}><div style={cs.score}>{data.activityCount}</div><div style={{ color: '#685e4e', fontSize: 10, fontFamily: "'DM Sans', sans-serif", marginTop: 4 }}>Runs scored</div></div>
+            <div style={{ ...cs.card, textAlign: 'center', padding: '10px 8px' }}><div style={cs.score}>{data.currentBuild.avg}</div><div style={{ color: '#685e4e', fontSize: 10, fontFamily: "'DM Sans', sans-serif", marginTop: 4 }}>Avg score</div></div>
+            <div style={{ ...cs.card, textAlign: 'center', padding: '10px 8px' }}><div style={cs.score}>{data.totalActivities}</div><div style={{ color: '#685e4e', fontSize: 10, fontFamily: "'DM Sans', sans-serif", marginTop: 4 }}>Total acts</div></div>
+          </div>
 
-      <OrnamentDivider>Stats</OrnamentDivider>
-
-      {/* Quick stats */}
-      <div className="grid grid-cols-3 gap-3 page-enter" style={{ animationDelay: '0.5s' }}>
-        <div className="card-dark p-3 text-center">
-          <p className="font-mono text-lg text-[#d4a832]">{activityCount}</p>
-          <p className="text-[#6a5e52] text-xs mt-1">Runs</p>
+          <button style={cs.btn} onClick={doSync} disabled={syncing}>{syncing ? syncMsg : 'Re-sync with Strava'}</button>
         </div>
-        <div className="card-dark p-3 text-center">
-          <p className="font-mono text-lg text-[#d4a832]">
-            {build?.archetype || '—'}
-          </p>
-          <p className="text-[#6a5e52] text-xs mt-1">Archetype</p>
-        </div>
-        <div className="card-dark p-3 text-center">
-          <p className="font-mono text-lg text-[#d4a832]">
-            {Math.round(Object.values(skills).reduce((s, v) => s + (v?.score || 0), 0) / 8)}
-          </p>
-          <p className="text-[#6a5e52] text-xs mt-1">Avg Score</p>
-        </div>
-      </div>
-
-      {/* Share button */}
-      <div className="mt-8 flex justify-center page-enter" style={{ animationDelay: '0.6s' }}>
-        <button
-          onClick={() => router.push('/share')}
-          className="px-6 py-2.5 rounded-lg bg-[#282420] border border-[#d4a832]/15
-                     text-[#d4a832] font-display text-sm tracking-wider
-                     active:scale-[0.97] transition-transform"
-        >
-          Share Build Card
-        </button>
-      </div>
-
-      <BottomNav />
+      )}
     </div>
   );
 }
