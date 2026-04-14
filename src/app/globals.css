@@ -1,0 +1,158 @@
+@import url('https://fonts.googleapis.com/css2?family=Cinzel:wght@400;500;600;700&family=Crimson+Text:ital,wght@0,400;0,600;0,700;1,400&family=JetBrains+Mono:wght@300;400;500&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --bg-deep: #0e0c0a;
+  --bg-dark: #1a1816;
+  --bg-mid: #282420;
+  --bg-light: #363230;
+  --text-primary: #e8dcc8;
+  --text-secondary: #a09080;
+  --text-muted: #6a5e52;
+  --gold: #d4a832;
+  --gold-dim: #8a6830;
+  --ember: #c94444;
+  --ember-dim: #5e1a1a;
+  --green: #5a8a6e;
+  --blue: #5a7a9a;
+}
+
+* {
+  -webkit-tap-highlight-color: transparent;
+}
+
+html {
+  background: var(--bg-deep);
+  color: var(--text-primary);
+}
+
+body {
+  font-family: 'Crimson Text', serif;
+  background: var(--bg-deep);
+  min-height: 100vh;
+  min-height: 100dvh;
+  overscroll-behavior: none;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Grain overlay for atmosphere */
+body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 9999;
+  opacity: 0.03;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+}
+
+/* Custom scrollbar */
+::-webkit-scrollbar {
+  width: 4px;
+}
+::-webkit-scrollbar-track {
+  background: var(--bg-dark);
+}
+::-webkit-scrollbar-thumb {
+  background: var(--text-muted);
+  border-radius: 2px;
+}
+
+/* Safe area padding for iPhone notch */
+@supports (padding: max(0px)) {
+  .safe-bottom {
+    padding-bottom: max(1rem, env(safe-area-inset-bottom));
+  }
+  .safe-top {
+    padding-top: max(0.5rem, env(safe-area-inset-top));
+  }
+}
+
+/* Skill bar animations */
+@keyframes skillBarFill {
+  from { width: 0%; }
+  to { width: var(--fill); }
+}
+
+.skill-bar-fill {
+  animation: skillBarFill 1.2s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
+
+/* Candlelight flicker effect */
+@keyframes candleFlicker {
+  0%, 100% { opacity: 0.7; filter: brightness(0.9); }
+  25% { opacity: 0.85; filter: brightness(1.0); }
+  50% { opacity: 0.75; filter: brightness(0.95); }
+  75% { opacity: 0.9; filter: brightness(1.05); }
+}
+
+.candle-glow {
+  animation: candleFlicker 4s ease-in-out infinite;
+}
+
+/* Pixel art rendering (no blur on upscale) */
+.pixel-art {
+  image-rendering: pixelated;
+  image-rendering: -moz-crisp-edges;
+  image-rendering: crisp-edges;
+}
+
+/* Divider ornament */
+.ornament-divider {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  color: var(--text-muted);
+}
+.ornament-divider::before,
+.ornament-divider::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: linear-gradient(to right, transparent, var(--gold-dim), transparent);
+}
+
+/* Card base */
+.card-dark {
+  background: linear-gradient(145deg, rgba(40, 36, 32, 0.9), rgba(26, 24, 22, 0.95));
+  border: 1px solid rgba(212, 168, 50, 0.08);
+  border-radius: 8px;
+}
+
+/* Radar chart */
+.radar-point {
+  transition: all 0.6s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+/* Page transitions */
+.page-enter {
+  animation: fadeSlideIn 0.4s ease-out;
+}
+
+@keyframes fadeSlideIn {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Loading pulse */
+@keyframes loadingPulse {
+  0%, 100% { opacity: 0.3; }
+  50% { opacity: 0.7; }
+}
+.loading-pulse {
+  animation: loadingPulse 2s ease-in-out infinite;
+}
+
+/* Prevent iOS double-tap zoom */
+* {
+  touch-action: manipulation;
+}

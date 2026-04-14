@@ -1,0 +1,96 @@
+/** @type {import('tailwindcss').Config} */
+module.exports = {
+  content: ['./src/**/*.{js,jsx,ts,tsx}'],
+  theme: {
+    extend: {
+      colors: {
+        parchment: {
+          50: '#fdf8f0',
+          100: '#f5ead6',
+          200: '#e8d5b0',
+          300: '#d4b882',
+          400: '#c19a58',
+          500: '#a67c3c',
+          600: '#8a6230',
+          700: '#6e4c28',
+          800: '#5a3d22',
+          900: '#4a321d',
+        },
+        ember: {
+          50: '#fef3ed',
+          100: '#fde2d0',
+          200: '#fac1a0',
+          300: '#f69766',
+          400: '#f06b34',
+          500: '#eb4b14',
+          600: '#d3340e',
+          700: '#af2510',
+          800: '#8c2014',
+          900: '#711d14',
+        },
+        shadow: {
+          50: '#f4f3f2',
+          100: '#e4e1de',
+          200: '#cbc5be',
+          300: '#aca399',
+          400: '#948a7d',
+          500: '#857a6f',
+          600: '#72665c',
+          700: '#5c524b',
+          800: '#504842',
+          900: '#46403b',
+          950: '#282420',
+        },
+        void: {
+          50: '#f5f5f4',
+          100: '#e5e4e3',
+          200: '#cbc9c5',
+          300: '#aaa6a0',
+          400: '#8f8a82',
+          500: '#7a7468',
+          600: '#6a6359',
+          700: '#57524a',
+          800: '#4a4640',
+          900: '#413d39',
+          950: '#1a1816',
+        },
+        blood: {
+          400: '#c94444',
+          500: '#a03030',
+          600: '#7d2222',
+          700: '#5e1a1a',
+        },
+        gold: {
+          300: '#f0d68a',
+          400: '#e8c55a',
+          500: '#d4a832',
+          600: '#b08820',
+        },
+      },
+      fontFamily: {
+        display: ['"Cinzel"', 'serif'],
+        body: ['"Crimson Text"', 'serif'],
+        mono: ['"JetBrains Mono"', 'monospace'],
+      },
+      backgroundImage: {
+        'grain': "url(\"data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.04'/%3E%3C/svg%3E\")",
+      },
+      animation: {
+        'flicker': 'flicker 4s ease-in-out infinite',
+        'pulse-slow': 'pulse 6s ease-in-out infinite',
+        'fade-in': 'fadeIn 0.6s ease-out',
+      },
+      keyframes: {
+        flicker: {
+          '0%, 100%': { opacity: '0.8' },
+          '50%': { opacity: '1' },
+        },
+        fadeIn: {
+          '0%': { opacity: '0', transform: 'translateY(8px)' },
+          '100%': { opacity: '1', transform: 'translateY(0)' },
+        },
+      },
+    },
+  },
+  plugins: [],
+};
