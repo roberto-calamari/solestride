@@ -21,6 +21,8 @@ export async function GET() {
     totalActivities: counts.total,
     currentBuild: result?.build || null,
     currentSkills: result?.skills || null,
+    buildHistory: result?.buildHistory || [],
+    trends: result?.trends || null,
     syncedAt: result?.syncedAt || null,
     syncStatus: result ? { status: 'completed' } : { status: 'none' },
   });
