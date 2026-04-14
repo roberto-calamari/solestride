@@ -1,6 +1,7 @@
 /**
  * Sync Runner - ES Module
  * Fetches Strava activities, computes metrics, scores skills, determines build.
+ * Now also reconstructs full build history timeline.
  */
 import fs from 'fs';
 import path from 'path';
@@ -34,7 +35,6 @@ async function refreshToken(user) {
   if (!res.ok) throw new Error('Token refresh failed: ' + res.status);
   const data = await res.json();
   
-  // Update stored user
   const users = readJSON('users.json') || {};
   const key = String(user.strava_id);
   if (users[key]) {
@@ -110,6 +110,93 @@ function processActivities(rawActivities) {
   return { activities: processed, metrics };
 }
 
+/**
+ * Reconstruct build history by replaying activities chronologically.
+ * Computes snapshots at intervals and records when build identity changes.
+ */
+function computeBuildHistory(activities, metrics) {
+  const included = activities.filter(a => a.included);
+  if (included.length < 5) return [];
+
+  included.sort((a, b) => new Date(a.start_date) - new Date(b.start_date));
+
+  // Compute at checkpoints: every 10 runs, minimum 5 runs before first checkpoint
+  const checkpoints = [];
+  const step = Math.max(8, Math.floor(included.length / 20));
+  for (let i = Math.min(5, included.length - 1); i < included.length; i += step) {
+    checkpoints.push(i);
+  }
+  // Always include the final run
+  if (checkpoints[checkpoints.length - 1] !== included.length - 1) {
+    checkpoints.push(included.length - 1);
+  }
+
+  const history = [];
+  let prevBuildKey = null;
+  let prevSnapshot = null;
+
+  for (const idx of checkpoints) {
+    const asOf = included[idx].start_date;
+    const skills = computeSkills(activities, metrics, asOf, prevSnapshot);
+    const build = computeBuild(skills);
+    const activitiesUpTo = included.slice(0, idx + 1);
+    const modifier = computeModifier(activitiesUpTo, skills);
+
+    const buildKey = `${build.archetype}|${build.tier}|${modifier}`;
+
+    if (buildKey !== prevBuildKey) {
+      history.push({
+        date: asOf,
+        archetype: build.archetype,
+        archetypeName: build.archetypeName,
+        tier: build.tier,
+        tierName: build.tierName,
+        modifier,
+        fullName: build.fullName,
+        avg: build.avg,
+        profile: build.profile,
+        levelUpTip: build.levelUpTip,
+        runCount: idx + 1,
+      });
+      prevBuildKey = buildKey;
+    }
+
+    // Store snapshot scores for regression calculation
+    prevSnapshot = {};
+    for (const k of Object.keys(skills)) {
+      prevSnapshot[k] = skills[k].score;
+    }
+  }
+
+  return history;
+}
+
+/**
+ * Compute trend data by comparing current skills to ~30 days ago.
+ */
+function computeTrends(activities, metrics, currentSkills) {
+  const included = activities.filter(a => a.included);
+  if (included.length < 10) return null;
+
+  included.sort((a, b) => new Date(b.start_date) - new Date(a.start_date));
+  const now = new Date();
+  const thirtyDaysAgo = new Date(now - 30 * 86400000);
+
+  // Find the activity closest to 30 days ago
+  const cutoffActivity = included.find(a => new Date(a.start_date) <= thirtyDaysAgo);
+  if (!cutoffActivity) return null;
+
+  const pastSkills = computeSkills(activities, metrics, cutoffActivity.start_date, null);
+  const trends = {};
+  for (const k of Object.keys(currentSkills)) {
+    const current = currentSkills[k]?.score || currentSkills[k] || 0;
+    const past = pastSkills[k]?.score || 0;
+    const delta = current - past;
+    trends[k] = { current: Math.round(current * 10) / 10, past: Math.round(past * 10) / 10, delta: Math.round(delta * 10) / 10 };
+  }
+  return trends;
+}
+
 export async function runSync(userId) {
   const users = readJSON('users.json') || {};
   const user = Object.values(users).find(u => u.id === userId);
@@ -123,7 +210,7 @@ export async function runSync(userId) {
   writeJSON(`activities_${user.strava_id}.json`, activities);
   writeJSON(`metrics_${user.strava_id}.json`, metrics);
 
-  // Compute skills
+  // Compute current skills
   const now = new Date().toISOString();
   const skills = computeSkills(activities, metrics, now, null);
 
@@ -132,9 +219,17 @@ export async function runSync(userId) {
   const modifier = computeModifier(activities.filter(a => a.included), skills);
   const description = describeBuild(build, skills);
 
+  // Reconstruct build history
+  const buildHistory = computeBuildHistory(activities, metrics);
+
+  // Compute trends
+  const trends = computeTrends(activities, metrics, skills);
+
   const result = {
     skills: Object.fromEntries(Object.entries(skills).map(([k, v]) => [k, { score: Math.round(v.score * 10) / 10, detail: v.detail }])),
     build: { ...build, modifier, description, fullName: build.tierName + ' ' + build.archetypeName },
+    buildHistory,
+    trends,
     activityCount: activities.filter(a => a.included).length,
     totalActivities: activities.length,
     syncedAt: now,
