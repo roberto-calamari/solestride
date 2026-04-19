@@ -52,6 +52,9 @@ export async function GET(request) {
     currentSkills: result?.skills || null,
     buildHistory: result?.buildHistory || [],
     trends: result?.trends || null,
+    prs: result?.prs || null,
+    weeklyStats: result?.weeklyStats || null,
+    priorities: result?.priorities || [],
     syncedAt: result?.syncedAt || null,
     syncStatus: result ? { status: 'completed' } : { status: 'none' },
   });
