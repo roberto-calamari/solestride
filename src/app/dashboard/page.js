@@ -185,6 +185,7 @@ export default function Dashboard(){
   const[runs,setRuns]=useState(null);
   const[runsPage,setRunsPage]=useState(1);
   const[showMethod,setShowMethod]=useState(false);
+  const[animKey,setAnimKey]=useState(0);
 
   useEffect(()=>{fetch('/api/user').then(r=>{if(r.status===401){window.location.href='/';return null}return r.json()}).then(d=>{if(d)setData(d)}).catch(()=>{})},[]);
 
@@ -193,51 +194,64 @@ export default function Dashboard(){
     try{const r=await fetch('/api/sync',{method:'POST'});const d=await r.json();if(d.status==='completed'){setSyncMsg('Done! '+d.activityCount+' runs scored.');setTimeout(()=>{setSyncing(false);setShowSettings(false);fetch('/api/user').then(r=>r.json()).then(setData);setRuns(null)},1500)}else{setSyncMsg('Error: '+(d.error||'Unknown'));setTimeout(()=>setSyncing(false),3000)}}catch(e){setSyncMsg('Error: '+e.message);setTimeout(()=>setSyncing(false),3000)}
   },[]);
 
-  const loadRuns=useCallback((pg)=>{
-    fetch(`/api/user?section=activities&page=${pg}`).then(r=>r.json()).then(d=>{setRuns(d);setRunsPage(pg)}).catch(()=>{});
-  },[]);
-
+  const loadRuns=useCallback((pg)=>{fetch(`/api/user?section=activities&page=${pg}`).then(r=>r.json()).then(d=>{setRuns(d);setRunsPage(pg)}).catch(()=>{});},[]);
   useEffect(()=>{if(tab==='runs'&&!runs)loadRuns(1)},[tab]);
 
-  const doAction=async(action)=>{
-    await fetch('/api/user',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action})});
-    window.location.href='/';
-  };
+  const switchTab=(t)=>{if(t==='history')setHistSel(null);setShowMethod(false);setTab(t);setAnimKey(k=>k+1)};
+  const doAction=async(a)=>{await fetch('/api/user',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:a})});window.location.href='/'};
 
   if(!data)return<div style={Y.page}><div style={{...Y.scr,textAlign:'center',paddingTop:100}}><p style={{color:'#685e4e'}}>Loading...</p></div></div>;
 
-  const sk=data.currentSkills||{};const bld=data.currentBuild;const hasBuild=bld&&Object.keys(sk).length>0;const trends=data.trends;const history=(data.buildHistory||[]).slice().reverse();
+  const sk=data.currentSkills||{};const bld=data.currentBuild;const hasBuild=bld&&Object.keys(sk).length>0;const trends=data.trends;const history=(data.buildHistory||[]).slice().reverse();const prs=data.prs;const ws=data.weeklyStats;const priorities=data.priorities||[];
 
   const Div=({text})=><div style={Y.dv}><div style={Y.dvl}/><span style={Y.dvt}>{text}</span><div style={Y.dvl}/></div>;
-  const Card=({children,glow,accent,active:a,style,onClick})=><div style={{...Y.card,...(glow?Y.glow:{}),...(accent?Y.accent:{}),...(a?Y.active:{}),position:'relative',...style}} onClick={onClick}><div style={Y.ci}/>{children}</div>;
-
-  // Option B: Two-card profile — portrait + growth
-  const Prof=({profile,tip})=>{
-    const p=profile||{};
-    const portrait=[p.identity,p.howYouRun,p.strengths].filter(Boolean).join(' ');
-    const growth=[p.watchFor,tip].filter(Boolean).join(' ');
-    return<>{portrait&&<Card glow><p style={Y.bd}>{portrait}</p></Card>}{growth&&<Card accent><div style={{...Y.xl,color:'#e8c050',marginBottom:6}}>What's Next</div><p style={Y.bd}>{growth}</p></Card>}</>;
-  };
-
-  const SBar=({k,score,onClick,showVsAvg})=>{const avg=bld?.avg||0;const diff=score-avg;const t=trends?.[k];return<div style={{marginBottom:14,cursor:onClick?'pointer':undefined}} onClick={onClick}><div style={{display:'flex',justifyContent:'space-between',marginBottom:4,alignItems:'center'}}><span style={Y.sml}>{SKILL_META[k].i} {SKILL_META[k].n}</span><div style={{display:'flex',alignItems:'center',gap:6}}>{showVsAvg&&Math.abs(diff)>3&&<span style={{fontSize:9,fontFamily:"'DM Sans',sans-serif",color:diff>0?'#50a060':'#c04040'}}>{diff>0?'▲':'▼'} {diff>0?'above':'below'} avg</span>}{!showVsAvg&&t&&Math.abs(t.delta)>0.5&&<span style={{fontSize:9,fontFamily:"'DM Sans',sans-serif",color:t.delta>0?'#50a060':'#c04040'}}>{t.delta>0?'▲':'▼'} {Math.abs(t.delta).toFixed(1)}</span>}<span style={Y.mg}>{Math.round(score*10)/10}</span></div></div><div style={Y.bt}><div style={{height:'100%',width:score+'%',background:`linear-gradient(90deg,${SKILL_META[k].c}44,${SKILL_META[k].c})`,transition:'width 1s ease'}}/></div></div>};
+  const Card=({children,glow,accent,active:a,style,onClick,delay})=><div style={{...Y.card,...(glow?Y.glow:{}),...(accent?Y.accent:{}),...(a?Y.active:{}),position:'relative',animation:delay!==undefined?`cardEnter 0.3s ease-out ${delay}ms both`:undefined,...style}} onClick={onClick}><div style={Y.ci}/>{children}</div>;
+  const Prof=({profile,tip})=>{const p=profile||{};const portrait=[p.identity,p.howYouRun,p.strengths].filter(Boolean).join(' ');const growth=[p.watchFor,tip].filter(Boolean).join(' ');return<>{portrait&&<Card glow><p style={Y.bd}>{portrait}</p></Card>}{growth&&<Card accent><div style={{...Y.xl,color:'#e8c050',marginBottom:6}}>What's Next</div><p style={Y.bd}>{growth}</p></Card>}</>};
+  const SBar=({k,score,onClick,showVsAvg,delay})=>{const avg=bld?.avg||0;const diff=score-avg;const t=trends?.[k];return<div style={{marginBottom:14,cursor:onClick?'pointer':undefined,animation:delay?`cardEnter 0.3s ease-out ${delay}ms both`:undefined}} onClick={onClick}><div style={{display:'flex',justifyContent:'space-between',marginBottom:4,alignItems:'center'}}><span style={Y.sml}>{SKILL_META[k].i} {SKILL_META[k].n}</span><div style={{display:'flex',alignItems:'center',gap:6}}>{showVsAvg&&Math.abs(diff)>3&&<span style={{fontSize:9,fontFamily:"'DM Sans',sans-serif",color:diff>0?'#50a060':'#c04040'}}>{diff>0?'▲':'▼'} {diff>0?'above':'below'} avg</span>}{!showVsAvg&&t&&Math.abs(t.delta)>0.5&&<span style={{fontSize:9,fontFamily:"'DM Sans',sans-serif",color:t.delta>0?'#50a060':'#c04040'}}>{t.delta>0?'▲':'▼'} {Math.abs(t.delta).toFixed(1)}</span>}<span style={Y.mg}>{Math.round(score*10)/10}</span></div></div><div style={Y.bt}><div className="bar-animate" style={{height:'100%',width:score+'%',background:`linear-gradient(90deg,${SKILL_META[k].c}44,${SKILL_META[k].c})`}}/></div></div>};
 
   const fmtPace=(s)=>{if(!s||s<=0)return'--:--';const m=Math.floor(s/60);const sc=Math.floor(s%60);return`${m}:${sc.toString().padStart(2,'0')}`};
-  const fmtDist=(m)=>(m/1000).toFixed(2)+' km';
+  const fmtDist=(m)=>(m/1000).toFixed(1)+' km';
   const fmtDur=(s)=>{const h=Math.floor(s/3600);const m=Math.floor((s%3600)/60);return h>0?`${h}h ${m}m`:`${m}m`};
   const fmtDate=(d)=>new Date(d).toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'});
+  const fmt5k=(s)=>{if(!s)return'--:--';const m=Math.floor(s/60);const sc=Math.floor(s%60);return`${m}:${sc.toString().padStart(2,'0')}`};
 
   // ===== HOME =====
   const Home=()=>!hasBuild?(
-    <div style={{textAlign:'center',paddingTop:40}}><h1 style={{fontFamily:"'Cinzel',serif",fontSize:24,color:'#e8c050',letterSpacing:4}}>SOLESTRIDE</h1><p style={{color:'#685e4e',margin:'8px 0 24px'}}>Welcome, {data.user?.strava_firstname}.</p><Card glow style={{textAlign:'center',padding:'24px 16px'}}><p style={{...Y.bd,marginBottom:16}}>Import your full Strava run history.</p>{syncing?<p style={Y.mt}>{syncMsg}</p>:<button style={{...Y.syncBtn,background:'linear-gradient(135deg,#fc4c02,#e84400)',color:'#fff',fontSize:14,fontFamily:"'DM Sans',sans-serif"}} onClick={doSync}>Sync with Strava</button>}</Card></div>
+    <div style={{textAlign:'center',paddingTop:40}}><h1 style={{fontFamily:"'Cinzel',serif",fontSize:24,color:'#e8c050',letterSpacing:4}}>SOLESTRIDE</h1><p style={{color:'#685e4e',margin:'8px 0 24px'}}>Welcome, {data.user?.strava_firstname}.</p><Card glow style={{textAlign:'center',padding:'24px 16px'}}><p style={{...Y.bd,marginBottom:16}}>Import your full Strava run history.</p>{syncing?<p style={Y.mt}><span className="spinner"/>Importing...</p>:<button style={{...Y.syncBtn,background:'linear-gradient(135deg,#fc4c02,#e84400)',color:'#fff',fontSize:14,fontFamily:"'DM Sans',sans-serif"}} onClick={doSync}>Sync with Strava</button>}</Card></div>
   ):(
     <div>
       <div style={{display:'flex',justifyContent:'space-between',alignItems:'flex-start'}}><div><div style={Y.sl}>Active Build</div><div style={{display:'flex',alignItems:'baseline',flexWrap:'wrap'}}><h1 style={Y.bn}>{bld.fullName}</h1><span style={Y.tg}>{bld.modifier}</span></div><p style={Y.tl}>{bld.tierName} tier · {bld.archetypeName} archetype</p></div><button style={Y.gear} onClick={()=>setShowSettings(true)}>⚙</button></div>
       <div style={{display:'flex',justifyContent:'center',margin:'20px 0 16px'}}><Radar skills={sk} size={260}/></div>
       <Prof profile={bld.profile||CP[bld.archetype]} tip={bld.levelUpTip}/>
+
+      {/* Weekly snapshot */}
+      {ws&&<><Div text="This Week"/>
+        <div style={{display:'grid',gridTemplateColumns:'1fr 1fr 1fr',gap:8}}>
+          <Card delay={50} style={{textAlign:'center',padding:'10px 6px'}}><div style={Y.mg}>{ws.thisWeek.runs}</div><div style={Y.mt}>runs</div>{ws.lastWeek.runs>0&&<div style={{fontSize:8,fontFamily:"'DM Sans',sans-serif",color:ws.thisWeek.runs>=ws.lastWeek.runs?'#50a060':'#c04040',marginTop:2}}>{ws.thisWeek.runs>=ws.lastWeek.runs?'▲':'▼'} vs {ws.lastWeek.runs} last wk</div>}</Card>
+          <Card delay={100} style={{textAlign:'center',padding:'10px 6px'}}><div style={Y.mg}>{ws.thisWeek.km}</div><div style={Y.mt}>km</div>{ws.lastWeek.km>0&&<div style={{fontSize:8,fontFamily:"'DM Sans',sans-serif",color:ws.thisWeek.km>=ws.lastWeek.km?'#50a060':'#c04040',marginTop:2}}>{ws.thisWeek.km>=ws.lastWeek.km?'▲':'▼'} vs {ws.lastWeek.km}</div>}</Card>
+          <Card delay={150} style={{textAlign:'center',padding:'10px 6px'}}><div style={Y.mg}>{ws.thisWeek.avgPace?fmtPace(ws.thisWeek.avgPace):'—'}</div><div style={Y.mt}>avg pace</div></Card>
+        </div></>}
+
+      {/* Priority ranking */}
+      {priorities.length>0&&<><Div text="Priority Focus"/>
+        <Card delay={200}><div style={{...Y.xl,marginBottom:8}}>Skills that would move your tier fastest</div>
+        {priorities.map((p,i)=><div key={p.key} style={{display:'flex',justifyContent:'space-between',alignItems:'center',padding:'6px 0',borderBottom:i<priorities.length-1?'1px solid rgba(170,140,80,.04)':'none'}}>
+          <div style={{display:'flex',alignItems:'center',gap:6}}><span style={{fontSize:8,fontFamily:"'Cinzel',serif",color:'#e8c050',fontWeight:700}}>{i+1}</span><span style={Y.bd}>{SKILL_META[p.key]?.i} {SKILL_META[p.key]?.n}</span></div>
+          <div style={{textAlign:'right'}}><span style={Y.mg}>{p.score}</span><span style={{...Y.mt,marginLeft:6}}>{p.gapFromAvg} below avg</span>{p.hasSensorIssue&&<span style={{...Y.mt,color:'#c04040',marginLeft:4}}>· needs sensor</span>}</div>
+        </div>)}</Card></>}
+
       <Div text="Skills"/>
-      {SK.map(k=><SBar key={k} k={k} score={sk[k]?.score||0} showVsAvg onClick={()=>{setDetail(k);setTab('detail')}}/>)}
+      {SK.map((k,i)=><SBar key={k} k={k} score={sk[k]?.score||0} showVsAvg delay={50+i*30} onClick={()=>{setDetail(k);switchTab('detail')}}/>)}
       <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:8,marginTop:8}}><Card style={{textAlign:'center',padding:'10px 8px'}}><div style={Y.mg}>{data.activityCount}</div><div style={Y.mt}>Runs scored</div></Card><Card style={{textAlign:'center',padding:'10px 8px'}}><div style={Y.mg}>{bld.avg}</div><div style={Y.mt}>Avg score</div></Card></div>
-      <button style={{...Y.syncBtn,marginTop:16}} onClick={async()=>{try{if(navigator.share){await navigator.share({title:'My Solestride Build',text:`${bld.fullName} (${bld.modifier}) — ${bld.avg} avg across 8 skills. ${SK.map(k=>`${SKILL_META[k].n}: ${Math.round(sk[k]?.score||0)}`).join(', ')}. solestride.app`})}else{await navigator.clipboard.writeText(`${bld.fullName} (${bld.modifier}) — ${bld.avg} avg`);alert('Copied to clipboard!')}}catch(e){}}}>Share Build</button>
+
+      {/* PRs */}
+      {prs&&<><Div text="Personal Records"/>
+        <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:8}}>
+          {prs.fastest5k&&<Card delay={50} style={{padding:'10px 12px'}}><div style={Y.xl}>Fastest 5K Equiv</div><div style={{...Y.mg,fontSize:16,marginTop:4}}>{fmt5k(prs.fastest5k.time_s)}</div><div style={Y.mt}>{prs.fastest5k.name}</div></Card>}
+          {prs.longestRun&&<Card delay={100} style={{padding:'10px 12px'}}><div style={Y.xl}>Longest Run</div><div style={{...Y.mg,fontSize:16,marginTop:4}}>{prs.longestRun.km} km</div><div style={Y.mt}>{prs.longestRun.name}</div></Card>}
+          {prs.biggestClimb&&<Card delay={150} style={{padding:'10px 12px'}}><div style={Y.xl}>Biggest Climb</div><div style={{...Y.mg,fontSize:16,marginTop:4}}>{prs.biggestClimb.elev_m}m</div><div style={Y.mt}>{prs.biggestClimb.name}</div></Card>}
+          <Card delay={200} style={{padding:'10px 12px'}}><div style={Y.xl}>Longest Streak</div><div style={{...Y.mg,fontSize:16,marginTop:4}}>{prs?.longestStreak||0} days</div><div style={Y.mt}>Consecutive run days</div></Card>
+        </div></>}
     </div>
   );
 
@@ -246,41 +260,27 @@ export default function Dashboard(){
     <div style={{display:'flex',justifyContent:'space-between',alignItems:'flex-start'}}><div><div style={Y.sl}>Character Sheet</div><h1 style={{fontSize:23,fontWeight:500,marginBottom:14}}>Skill Profile</h1></div><button style={Y.gear} onClick={()=>setShowSettings(true)}>⚙</button></div>
     <Card style={{marginBottom:16}}><p style={{...Y.bd,color:'#685e4e',fontSize:12}}>Scored 0–100 against universal human ceilings. {trends?'Arrows show 30-day trend.':'Re-sync to see trends.'} Tap any skill for breakdown.</p></Card>
     <Radar skills={sk} size={260}/><Div text="All Skills"/>
-    {SK.map(k=>{const s=sk[k]?.score||0;const t=trends?.[k];return<Card key={k} style={{cursor:'pointer'}} onClick={()=>{setDetail(k);setTab('detail');setShowMethod(false)}}><div style={{display:'flex',justifyContent:'space-between',alignItems:'flex-start',marginBottom:5}}><div style={{flex:1}}><span style={Y.sml}>{SKILL_META[k].i} {SKILL_META[k].n}</span><p style={{fontSize:11,color:'#685e4e',marginTop:2,fontFamily:"'DM Sans',sans-serif"}}>{SKILL_META[k].s}</p></div><div style={{textAlign:'right'}}><span style={Y.mxl}>{Math.round(s)}</span>{t&&Math.abs(t.delta)>0.5&&<div style={{fontSize:9,fontFamily:"'DM Sans',sans-serif",color:t.delta>0?'#50a060':'#c04040',marginTop:2}}>{t.delta>0?'▲':'▼'} {Math.abs(t.delta).toFixed(1)} in 30d</div>}</div></div><div style={{...Y.bt,height:5}}><div style={{height:'100%',width:s+'%',background:`linear-gradient(90deg,${SKILL_META[k].c}44,${SKILL_META[k].c})`}}/></div></Card>})}
+    {SK.map((k,i)=>{const s=sk[k]?.score||0;const t=trends?.[k];return<Card key={k} style={{cursor:'pointer'}} delay={i*40} onClick={()=>{setDetail(k);switchTab('detail')}}><div style={{display:'flex',justifyContent:'space-between',alignItems:'flex-start',marginBottom:5}}><div style={{flex:1}}><span style={Y.sml}>{SKILL_META[k].i} {SKILL_META[k].n}</span><p style={{fontSize:11,color:'#685e4e',marginTop:2,fontFamily:"'DM Sans',sans-serif"}}>{SKILL_META[k].s}</p></div><div style={{textAlign:'right'}}><span style={Y.mxl}>{Math.round(s)}</span>{t&&Math.abs(t.delta)>0.5&&<div style={{fontSize:9,fontFamily:"'DM Sans',sans-serif",color:t.delta>0?'#50a060':'#c04040',marginTop:2}}>{t.delta>0?'▲':'▼'} {Math.abs(t.delta).toFixed(1)} in 30d</div>}</div></div><div style={{...Y.bt,height:5}}><div className="bar-animate" style={{height:'100%',width:s+'%',background:`linear-gradient(90deg,${SKILL_META[k].c}44,${SKILL_META[k].c})`}}/></div></Card>})}
   </div>;
 
-  // ===== DETAIL (Option C: sentence + landmark bar + numbers + tips, methodology collapsible) =====
-  const Detail=()=>{const k=detail,m=SKILL_META[k],s=sk[k]?.score||0,d=sk[k]?.detail||{},t=trends?.[k];const mkeys=Object.keys(d).filter(x=>x!=='reason'&&x!=='requires_hr'&&x!=='requires_sensor');
+  // ===== DETAIL (Option C + contributing runs) =====
+  const Detail=()=>{const k=detail,m=SKILL_META[k],s=sk[k]?.score||0,d=sk[k]?.detail||{},t=trends?.[k],contrib=sk[k]?.contributing||[];const mkeys=Object.keys(d).filter(x=>x!=='reason'&&x!=='requires_hr'&&x!=='requires_sensor');
   const interpretation=typeof m.interpret==='function'?m.interpret(s):'';
   return<div>
-    <div style={{display:'flex',alignItems:'center',gap:10,marginBottom:20}}><button style={Y.bb} onClick={()=>setTab('skills')}>←</button><span style={{fontSize:23,fontWeight:500}}>{m.i} {m.n}</span></div>
-
-    {/* Score + trend + interpretation as one unit */}
+    <div style={{display:'flex',alignItems:'center',gap:10,marginBottom:20}}><button style={Y.bb} onClick={()=>switchTab('skills')}>←</button><span style={{fontSize:23,fontWeight:500}}>{m.i} {m.n}</span></div>
     <Card glow>
-      <div style={{display:'flex',alignItems:'baseline',gap:10}}>
-        <div style={{fontFamily:"'IBM Plex Mono',monospace",fontSize:44,fontWeight:300,color:'#e8c050'}}>{s.toFixed?s.toFixed(1):s}<span style={{fontSize:16,color:'#685e4e'}}> / 100</span></div>
-        {t&&Math.abs(t.delta)>0.5&&<span style={{fontSize:12,fontFamily:"'DM Sans',sans-serif",color:t.delta>0?'#50a060':'#c04040'}}>{t.delta>0?'▲':'▼'} {Math.abs(t.delta).toFixed(1)}</span>}
-      </div>
+      <div style={{display:'flex',alignItems:'baseline',gap:10}}><div style={{fontFamily:"'IBM Plex Mono',monospace",fontSize:44,fontWeight:300,color:'#e8c050'}}>{s.toFixed?s.toFixed(1):s}<span style={{fontSize:16,color:'#685e4e'}}> / 100</span></div>{t&&Math.abs(t.delta)>0.5&&<span style={{fontSize:12,fontFamily:"'DM Sans',sans-serif",color:t.delta>0?'#50a060':'#c04040'}}>{t.delta>0?'▲':'▼'} {Math.abs(t.delta).toFixed(1)}</span>}</div>
       {interpretation&&<p style={{...Y.bd,marginTop:10}}>{interpretation}</p>}
-      {/* Landmark bar */}
       {m.landmarks&&<LandmarkBar score={s} landmarks={m.landmarks} color={m.c}/>}
     </Card>
+    {mkeys.length>0&&<><Div text="Your Numbers"/>{mkeys.map((key,i)=>{const meta=m.metrics?.[key];const val=d[key];return<Card key={key} delay={i*40}><div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:meta?.ex?6:0}}><span style={{...Y.bd,flex:1}}>{meta?.label||key.replace(/_/g,' ')}</span><span style={{...Y.mg,fontSize:14}}>{typeof val==='number'?Math.round(val*100)/100:val}</span></div>{meta?.ex&&<p style={Y.se}>{meta.ex}</p>}</Card>})}</>}
 
-    {/* Your Numbers */}
-    {mkeys.length>0&&<><Div text="Your Numbers"/>
-      {mkeys.map(key=>{const meta=m.metrics?.[key];const val=d[key];return<Card key={key}>
-        <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:meta?.ex?6:0}}>
-          <span style={{...Y.bd,flex:1}}>{meta?.label||key.replace(/_/g,' ')}</span>
-          <span style={{...Y.mg,fontSize:14}}>{typeof val==='number'?Math.round(val*100)/100:val}</span>
-        </div>
-        {meta?.ex&&<p style={Y.se}>{meta.ex}</p>}
-      </Card>})}
+    {/* Contributing runs */}
+    {contrib.length>0&&<><Div text="Runs That Drove This Score"/>
+      {contrib.map((r,i)=><Card key={i} delay={i*30} style={{padding:'10px 14px'}}><div style={{display:'flex',justifyContent:'space-between',alignItems:'center'}}><div style={{flex:1,minWidth:0}}><p style={{fontSize:13,fontWeight:500,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{r.name}</p>{r.date&&<p style={Y.mt}>{fmtDate(r.date)}{r.km>0?` · ${r.km} km`:''}</p>}</div><span style={{...Y.mg,fontSize:11,flexShrink:0,marginLeft:8}}>{r.value}</span></div></Card>)}
     </>}
 
-    {/* Improvement tips */}
     <Card accent><div style={{...Y.xl,color:'#e8c050',marginBottom:6}}>How to Improve</div><p style={Y.bd}>{m.tips}</p></Card>
-
-    {/* Methodology collapsible */}
     <button onClick={()=>setShowMethod(!showMethod)} style={{background:'none',border:'none',cursor:'pointer',display:'flex',alignItems:'center',gap:6,padding:'12px 0',color:'#685e4e',fontFamily:"'DM Sans',sans-serif",fontSize:11}}><span style={{transform:showMethod?'rotate(90deg)':'rotate(0deg)',transition:'transform .2s',display:'inline-block'}}>▸</span> How this skill is calculated</button>
     {showMethod&&<Card><p style={Y.bd}>{m.method}</p></Card>}
   </div>};
@@ -289,14 +289,23 @@ export default function Dashboard(){
   const History=()=>{if(histSel!==null){const e=history[histSel];return<div><div style={{display:'flex',alignItems:'center',gap:10,marginBottom:20}}><button style={Y.bb} onClick={()=>setHistSel(null)}>←</button><span style={{fontSize:23,fontWeight:500}}>{e.fullName}</span></div><Card glow><div style={{display:'flex',alignItems:'center',gap:6,marginBottom:6}}><span style={Y.tgs}>{e.modifier}</span><span style={Y.mt}>{fmtDate(e.date)}</span></div><div style={{display:'flex',justifyContent:'space-between',alignItems:'baseline'}}><span style={Y.bns}>{e.tierName} · {e.archetypeName}</span><span style={Y.mg}>{e.avg} avg</span></div><div style={Y.mt}>After {e.runCount} runs</div></Card><Prof profile={e.profile||CP[e.archetype]} tip={e.levelUpTip}/></div>}
   return<div><div style={Y.sl}>Chronicle</div><h1 style={{fontSize:23,fontWeight:500,marginBottom:14}}>Build History</h1><Card style={{marginBottom:14}}><p style={{...Y.bd,color:'#685e4e',fontSize:12}}>Every archetype, tier, or modifier change is recorded. Tap any entry to explore that build.</p></Card>
   {history.length===0&&<Card><p style={Y.bd}>No history yet. Sync with Strava to reconstruct your timeline.</p></Card>}
-  {history.map((b,i)=><Card key={i} active={i===0} style={{cursor:'pointer'}} onClick={()=>setHistSel(i)}><div style={{display:'flex',alignItems:'center',gap:6,marginBottom:4}}>{i===0&&<span style={Y.nw}>NOW</span>}<span style={Y.mt}>{fmtDate(b.date)}</span><span style={Y.tgs}>{b.modifier}</span></div><div style={{display:'flex',alignItems:'baseline',gap:8}}><span style={{fontSize:28}}>{AE[b.archetype]||'◇'}</span><div><h3 style={Y.bns}>{b.fullName}</h3><span style={Y.mt}>{b.avg} avg · {b.runCount} runs</span></div></div></Card>)}</div>};
+  {history.map((b,i)=><Card key={i} active={i===0} delay={i*40} style={{cursor:'pointer'}} onClick={()=>setHistSel(i)}><div style={{display:'flex',alignItems:'center',gap:6,marginBottom:4}}>{i===0&&<span style={Y.nw}>NOW</span>}<span style={Y.mt}>{fmtDate(b.date)}</span><span style={Y.tgs}>{b.modifier}</span></div><div style={{display:'flex',alignItems:'baseline',gap:8}}><span style={{fontSize:28}}>{AE[b.archetype]||'◇'}</span><div><h3 style={Y.bns}>{b.fullName}</h3><span style={Y.mt}>{b.avg} avg · {b.runCount} runs</span></div></div></Card>)}</div>};
 
-  // ===== RUNS =====
-  const Runs=()=><div>
+  // ===== RUNS (with summary stats) =====
+  const Runs=()=>{
+    const rs=runs;
+    const summary=rs?{total:rs.total,km:rs.activities?.reduce((s,a)=>s+a.distance_m/1000,0)||0,avgPace:rs.activities?.length>0?rs.activities.reduce((s,a)=>s+a.moving_time_s/(a.distance_m/1000),0)/rs.activities.length:0}:null;
+    return<div>
     <div style={Y.sl}>Activity Log</div><h1 style={{fontSize:23,fontWeight:500,marginBottom:14}}>Runs</h1>
-    {!runs?<p style={Y.mt}>Loading...</p>:<>{runs.activities?.map((a,i)=><Card key={a.strava_id||i}><div style={{display:'flex',justifyContent:'space-between',alignItems:'flex-start'}}><div style={{flex:1,minWidth:0}}><p style={{fontSize:14,fontWeight:500,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{a.name}</p><p style={Y.mt}>{fmtDate(a.start_date_local||a.start_date)}</p></div><div style={{textAlign:'right',marginLeft:12}}><div style={Y.mg}>{fmtDist(a.distance_m)}</div><div style={{...Y.mt,marginTop:2}}>{fmtPace(a.moving_time_s/(a.distance_m/1000))}/km · {fmtDur(a.moving_time_s)}</div></div></div>{(a.average_heartrate||a.total_elevation_gain_m>10)&&<div style={{display:'flex',gap:8,marginTop:6}}>{a.average_heartrate>0&&<span style={{fontSize:10,fontFamily:"'IBM Plex Mono',monospace",color:'#d06050'}}>♥{Math.round(a.average_heartrate)}</span>}{a.total_elevation_gain_m>10&&<span style={{fontSize:10,fontFamily:"'IBM Plex Mono',monospace",color:'#a08060'}}>↑{Math.round(a.total_elevation_gain_m)}m</span>}</div>}</Card>)}
-    {runs.totalPages>1&&<div style={{display:'flex',justifyContent:'center',gap:12,marginTop:12}}><button onClick={()=>loadRuns(runsPage-1)} disabled={runsPage<=1} style={{...Y.syncBtn,width:'auto',padding:'8px 16px',opacity:runsPage<=1?.3:1}}>← Prev</button><span style={Y.mt}>{runsPage} / {runs.totalPages}</span><button onClick={()=>loadRuns(runsPage+1)} disabled={runsPage>=runs.totalPages} style={{...Y.syncBtn,width:'auto',padding:'8px 16px',opacity:runsPage>=runs.totalPages?.3:1}}>Next →</button></div>}</>}
-  </div>;
+    {/* Summary stats */}
+    {summary&&<div style={{display:'grid',gridTemplateColumns:'1fr 1fr 1fr',gap:8,marginBottom:14}}>
+      <Card style={{textAlign:'center',padding:'8px 6px'}}><div style={Y.mg}>{summary.total}</div><div style={Y.mt}>total runs</div></Card>
+      <Card style={{textAlign:'center',padding:'8px 6px'}}><div style={Y.mg}>{Math.round(summary.km)}</div><div style={Y.mt}>total km</div></Card>
+      <Card style={{textAlign:'center',padding:'8px 6px'}}><div style={Y.mg}>{fmtPace(summary.avgPace)}</div><div style={Y.mt}>avg pace</div></Card>
+    </div>}
+    {!rs?<p style={Y.mt}><span className="spinner"/>Loading runs...</p>:<>{rs.activities?.map((a,i)=><Card key={a.strava_id||i} delay={i*20}><div style={{display:'flex',justifyContent:'space-between',alignItems:'flex-start'}}><div style={{flex:1,minWidth:0}}><p style={{fontSize:14,fontWeight:500,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{a.name}</p><p style={Y.mt}>{fmtDate(a.start_date_local||a.start_date)}</p></div><div style={{textAlign:'right',marginLeft:12}}><div style={Y.mg}>{fmtDist(a.distance_m)}</div><div style={{...Y.mt,marginTop:2}}>{fmtPace(a.moving_time_s/(a.distance_m/1000))}/km · {fmtDur(a.moving_time_s)}</div></div></div>{(a.average_heartrate||a.total_elevation_gain_m>10)&&<div style={{display:'flex',gap:8,marginTop:6}}>{a.average_heartrate>0&&<span style={{fontSize:10,fontFamily:"'IBM Plex Mono',monospace",color:'#d06050'}}>♥{Math.round(a.average_heartrate)}</span>}{a.total_elevation_gain_m>10&&<span style={{fontSize:10,fontFamily:"'IBM Plex Mono',monospace",color:'#a08060'}}>↑{Math.round(a.total_elevation_gain_m)}m</span>}</div>}</Card>)}
+    {rs.totalPages>1&&<div style={{display:'flex',justifyContent:'center',gap:12,marginTop:12}}><button onClick={()=>loadRuns(runsPage-1)} disabled={runsPage<=1} style={{...Y.syncBtn,width:'auto',padding:'8px 16px',opacity:runsPage<=1?.3:1}}>← Prev</button><span style={Y.mt}>{runsPage} / {rs.totalPages}</span><button onClick={()=>loadRuns(runsPage+1)} disabled={runsPage>=rs.totalPages} style={{...Y.syncBtn,width:'auto',padding:'8px 16px',opacity:runsPage>=rs.totalPages?.3:1}}>Next →</button></div>}</>}
+  </div>};
 
   // ===== CODEX =====
   const Codex=()=>{const tabs=[['a','Archetypes'],['t','Tiers'],['m','Modifiers']];return<div>
@@ -305,8 +314,8 @@ export default function Dashboard(){
     <div style={{display:'flex',gap:3,marginBottom:16}}>{tabs.map(([id,label])=><button key={id} onClick={()=>{setCxTab(id);setCxSel(null)}} style={{fontFamily:"'Cinzel',serif",fontSize:10,fontWeight:600,color:cxTab===id?'#e8c050':'#685e4e',background:cxTab===id?'rgba(232,192,80,.1)':'rgba(60,48,30,.3)',border:'1px solid '+(cxTab===id?'rgba(232,192,80,.12)':'rgba(100,80,50,.08)'),borderRadius:2,padding:'9px 14px',cursor:'pointer',flex:1,textAlign:'center',textTransform:'uppercase',letterSpacing:1.5}}>{label}</button>)}</div>
     {cxTab==='a'&&!cxSel&&<div>{['Single','Dual','Shape'].map(cat=><div key={cat} style={{marginBottom:20}}><div style={{...Y.xl,marginBottom:10,color:'#b0a088'}}>{cat}-{cat==='Shape'?'Based':'Dominant'}</div><div style={{display:'grid',gridTemplateColumns:'repeat(3,1fr)',gap:10}}>{ARCHETYPES.filter(a=>a.cat===cat).map(a=><div key={a.id} onClick={()=>setCxSel(a.id)} style={{cursor:'pointer',textAlign:'center',borderRadius:3,background:'rgba(30,25,19,.9)',border:'1px solid rgba(170,140,80,.09)',padding:'14px 6px 10px'}}><div style={{fontSize:28,marginBottom:6}}>{AE[a.id]}</div><p style={{fontFamily:"'Cinzel',serif",fontSize:7.5,fontWeight:600,color:'#b0a088',textTransform:'uppercase',letterSpacing:1}}>{a.n}</p></div>)}</div></div>)}</div>}
     {cxTab==='a'&&cxSel&&(()=>{const a=ARCHETYPES.find(x=>x.id===cxSel);const p=CP[cxSel]||{};return<div><button style={{...Y.bb,marginBottom:14}} onClick={()=>setCxSel(null)}>← Back</button><div style={{textAlign:'center',marginBottom:16}}><div style={{fontSize:48,marginBottom:8}}>{AE[cxSel]}</div><h2 style={{...Y.bn,marginBottom:4}}>{a.n}</h2><p style={Y.tl}>{a.cat}-{a.cat==='Shape'?'Based':'Dominant'} · Primary: {a.pr}</p></div><Prof profile={p}/><Card><div style={{...Y.xl,marginBottom:6}}>At Each Tier</div>{TIERS.map(t=><div key={t.n} style={{display:'flex',justifyContent:'space-between',padding:'6px 0',borderBottom:'1px solid rgba(170,140,80,.04)'}}><span style={Y.bd}>{t.n} {a.n}</span><span style={Y.mt}>{t.r} avg</span></div>)}</Card></div>})()}
-    {cxTab==='t'&&<div>{TIERS.map((t,i)=><Card key={t.n} style={{borderLeft:`2px solid rgba(232,192,80,${(.04+i*.06).toFixed(2)})`}}><div style={{display:'flex',justifyContent:'space-between',marginBottom:4}}><h3 style={Y.bns}>{t.n}</h3><span style={Y.mg}>{t.r} avg</span></div><p style={Y.bd}>{t.d}</p><p style={{...Y.se,marginTop:8}}>{t.how}</p></Card>)}<Card><p style={Y.bd}>Tier = simple average of all 8 skills. Skills at 0 still count. Raise weakest or strongest — math doesn't care.</p></Card></div>}
-    {cxTab==='m'&&<div>{MODS.map(m=><Card key={m.n} style={{borderLeft:'2px solid rgba(170,140,80,.08)'}}><h3 style={{...Y.bns,marginBottom:4}}>{m.n}</h3><p style={Y.bd}>{m.d}</p><p style={{...Y.se,marginTop:8}}>{m.how}</p></Card>)}<Card><p style={Y.bd}>Modifiers describe training behavior, not ability. Evaluated independently of archetype and tier.</p></Card></div>}
+    {cxTab==='t'&&<div>{TIERS.map((t,i)=><Card key={t.n} delay={i*40} style={{borderLeft:`2px solid rgba(232,192,80,${(.04+i*.06).toFixed(2)})`}}><div style={{display:'flex',justifyContent:'space-between',marginBottom:4}}><h3 style={Y.bns}>{t.n}</h3><span style={Y.mg}>{t.r} avg</span></div><p style={Y.bd}>{t.d}</p><p style={{...Y.se,marginTop:8}}>{t.how}</p></Card>)}<Card><p style={Y.bd}>Tier = simple average of all 8 skills. Skills at 0 still count. Raise weakest or strongest — math doesn't care.</p></Card></div>}
+    {cxTab==='m'&&<div>{MODS.map((m,i)=><Card key={m.n} delay={i*40} style={{borderLeft:'2px solid rgba(170,140,80,.08)'}}><h3 style={{...Y.bns,marginBottom:4}}>{m.n}</h3><p style={Y.bd}>{m.d}</p><p style={{...Y.se,marginTop:8}}>{m.how}</p></Card>)}<Card><p style={Y.bd}>Modifiers describe training behavior, not ability. Evaluated independently of archetype and tier.</p></Card></div>}
   </div>};
 
   const screens={home:Home,skills:Skills,detail:Detail,history:History,runs:Runs,codex:Codex};
@@ -314,12 +323,12 @@ export default function Dashboard(){
   const navItems=[['home','⚔','Home'],['skills','✦','Skills'],['history','◈','History'],['runs','🏃','Runs'],['codex','❖','Codex']];
 
   return(<div style={Y.page}>
-    <div style={Y.scr}><Scr/></div>
-    <div style={Y.nav}>{navItems.map(([id,icon,label])=><button key={id} onClick={()=>{if(id==='history')setHistSel(null);setTab(id)}} style={{...Y.nb,...(tab===id||(tab==='detail'&&id==='skills')?Y.nba:{})}}><span style={{fontSize:16}}>{icon}</span><span style={Y.nl}>{label}</span></button>)}</div>
+    <div key={animKey} className="tab-enter" style={Y.scr}><Scr/></div>
+    <div style={Y.nav}>{navItems.map(([id,icon,label])=><button key={id} onClick={()=>switchTab(id)} style={{...Y.nb,...(tab===id||(tab==='detail'&&id==='skills')?Y.nba:{})}}><span style={{fontSize:16}}>{icon}</span><span style={Y.nl}>{label}</span></button>)}</div>
     {showSettings&&<div style={Y.overlay} onClick={()=>{setShowSettings(false);setConfirmAction(null)}}><div style={Y.panel} onClick={e=>e.stopPropagation()}>
       <div style={{...Y.xl,marginBottom:16,color:'#b0a088'}}>Settings</div>
       <Card><div style={Y.xl}>Account</div><p style={{fontSize:16,fontWeight:500,marginTop:4}}>{data.user?.strava_firstname} {data.user?.strava_lastname}</p><p style={Y.mt}>{data.activityCount} runs scored · {data.totalActivities} total activities</p></Card>
-      <button style={Y.syncBtn} onClick={doSync} disabled={syncing}>{syncing?syncMsg:'Re-sync with Strava'}</button>
+      <button style={Y.syncBtn} onClick={doSync} disabled={syncing}>{syncing?<><span className="spinner"/>{syncMsg}</>:'Re-sync with Strava'}</button>
       {confirmAction==='disconnect'?<div style={{marginTop:12}}><p style={{color:'#c04040',fontSize:12,marginBottom:8,fontFamily:"'DM Sans',sans-serif"}}>Disconnect from Strava?</p><div style={{display:'flex',gap:8}}><button style={{...Y.danger,flex:1,textAlign:'center'}} onClick={()=>doAction('disconnect')}>Confirm</button><button style={{...Y.syncBtn,flex:1,marginTop:0}} onClick={()=>setConfirmAction(null)}>Cancel</button></div></div>:<button style={Y.danger} onClick={()=>setConfirmAction('disconnect')}>Disconnect Strava</button>}
       {confirmAction==='delete'?<div style={{marginTop:6}}><p style={{color:'#c04040',fontSize:12,marginBottom:8,fontFamily:"'DM Sans',sans-serif"}}>Permanently delete ALL your data?</p><div style={{display:'flex',gap:8}}><button style={{...Y.danger,flex:1,textAlign:'center',background:'rgba(192,64,64,.3)'}} onClick={()=>doAction('delete-all')}>Delete Everything</button><button style={{...Y.syncBtn,flex:1,marginTop:0}} onClick={()=>setConfirmAction(null)}>Cancel</button></div></div>:<button style={Y.danger} onClick={()=>setConfirmAction('delete')}>Delete All My Data</button>}
       <div style={{textAlign:'center',marginTop:16}}><p style={{fontFamily:"'Cinzel',serif",fontSize:8,letterSpacing:3,textTransform:'uppercase',color:'rgba(100,90,70,.4)'}}>Solestride v1.0</p><p style={{color:'rgba(100,90,70,.3)',fontSize:10,marginTop:4,fontFamily:"'DM Sans',sans-serif"}}>No maps · No social · No tracking</p></div>
