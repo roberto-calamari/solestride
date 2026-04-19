@@ -259,16 +259,40 @@ export function computeBuild(skills) {
   };
 }
 
-export function computeModifier(activities, skills) {
+export function computeModifier(activities, skills, previousSkills) {
   if (activities.length < 20) return 'Fresh';
-  if (activities.length > 200) {
-    const fort = skills.fortitude?.score || 0;
-    if (fort > 55) return 'Veteran';
-  }
+
+  const SKILL_KEYS = ['velocity', 'endurance', 'ascent', 'stamina', 'cadence', 'fortitude', 'resilience', 'ranging'];
   const fort = skills.fortitude?.score || 0;
   const fortDetail = skills.fortitude?.detail || {};
+
+  // Trend-based modifiers (need previous snapshot to compare)
+  if (previousSkills) {
+    let improving = 0, declining = 0, unchanged = 0;
+    for (const k of SKILL_KEYS) {
+      const cur = skills[k]?.score || 0;
+      const prev = previousSkills[k] || 0;
+      const delta = cur - prev;
+      if (delta > 3) improving++;
+      else if (delta < -3) declining++;
+      else unchanged++;
+    }
+
+    // Comeback: was declining (some skills regressed) but now multiple are rising
+    if (improving >= 3 && declining >= 1) return 'Comeback';
+
+    // Improving: 3+ skills went up meaningfully, none declined
+    if (improving >= 3 && declining === 0) return 'Improving';
+
+    // Plateau'd: 6+ skills barely changed
+    if (unchanged >= 6 && improving <= 1 && declining <= 1) return "Plateau'd";
+  }
+
+  // Volume/behavior-based modifiers
+  if (activities.length > 200 && fort > 55) return 'Veteran';
   if (fort > 55 && (fortDetail.volume_cv || 0) < 0.4) return 'Consistent';
   if ((fortDetail.volume_cv || 0) > 0.6) return 'Streaky';
+
   return 'Consistent';
 }
 
