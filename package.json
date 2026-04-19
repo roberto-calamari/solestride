@@ -1,0 +1,25 @@
+{
+  "name": "solestride",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "test": "node --test src/tests/*.test.js",
+    "test:scoring": "node --test src/tests/scoring.test.js",
+    "test:builds": "node --test src/tests/builds.test.js",
+    "test:determinism": "node --test src/tests/determinism.test.js"
+  },
+  "dependencies": {
+    "next": "14.2.35",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "iron-session": "^8.0.3"
+  },
+  "devDependencies": {
+    "tailwindcss": "^3.4.13",
+    "postcss": "^8.4.47",
+    "autoprefixer": "^10.4.20"
+  }
+}

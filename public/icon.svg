@@ -1,0 +1,15 @@
+<svg xmlns='http://www.w3.org/2000/svg' width='512' height='512' viewBox='0 0 512 512'>
+  <rect width='512' height='512' rx='96' fill='#0e0c0a'/>
+  <circle cx='256' cy='256' r='180' fill='none' stroke='#d4a832' stroke-width='3' opacity='0.25'/>
+  <circle cx='256' cy='256' r='120' fill='none' stroke='#d4a832' stroke-width='2' opacity='0.15'/>
+  <line x1='256' y1='76' x2='256' y2='436' stroke='#d4a832' stroke-width='2' opacity='0.2'/>
+  <line x1='76' y1='256' x2='436' y2='256' stroke='#d4a832' stroke-width='2' opacity='0.2'/>
+  <line x1='128' y1='128' x2='384' y2='384' stroke='#d4a832' stroke-width='1.5' opacity='0.12'/>
+  <line x1='384' y1='128' x2='128' y2='384' stroke='#d4a832' stroke-width='1.5' opacity='0.12'/>
+  <circle cx='256' cy='256' r='20' fill='#d4a832' opacity='0.8'/>
+  <polygon points='256,100 270,230 256,220 242,230' fill='#d4a832' opacity='0.6'/>
+  <polygon points='256,412 242,282 256,292 270,282' fill='#8a6830' opacity='0.5'/>
+  <polygon points='100,256 230,242 220,256 230,270' fill='#8a6830' opacity='0.4'/>
+  <polygon points='412,256 282,270 292,256 282,242' fill='#d4a832' opacity='0.5'/>
+  <text x='256' y='470' text-anchor='middle' font-family='serif' font-size='42' font-weight='600' fill='#d4a832' opacity='0.7' letter-spacing='8'>SOLESTRIDE</text>
+</svg>
