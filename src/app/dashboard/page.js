@@ -1,12 +1,13 @@
 'use client';
 import { useState, useEffect, useCallback } from 'react';
 
-// ===== SKILL META =====
+// ===== SKILL META WITH LANDMARKS + INTERPRETATION =====
 const SKILL_META = {
   velocity:{n:'Velocity',i:'⚡',c:'#f0c868',s:'Raw speed vs world standards',
     method:'Each run is converted to an equivalent 5K time using the Riegel formula, then scored on Solestride\'s 0-1400 Speed Index. Your best 5 runs in the scoring window are selected, weighted by recency, and averaged against the theoretical ceiling of 1400.',
-    ceiling:'100 requires world-record-equivalent speed. A 25:00 5K scores roughly 30. A competitive 18:00 5K scores around 55. Sub-elite 15:30 approaches 70. Scores above 80 require national-class speed.',
     tips:'Add one tempo session per week (20-30 min at comfortably hard pace). Parkruns and local 5Ks are also great catalysts for moving this number.',
+    landmarks:[{at:15,label:'30min 5K'},{at:30,label:'25min 5K'},{at:50,label:'20min 5K'},{at:60,label:'Sub-18'},{at:75,label:'Club racer'},{at:90,label:'National'}],
+    interpret:(s)=>s<10?'Very early. Your speed data is still building — keep logging runs.':s<25?'Equivalent to roughly a 27-28 minute 5K. Solid recreational pace with lots of room to grow.':s<40?'Roughly a 22-24 minute 5K equivalent. Faster than most recreational runners.':s<55?'Around a 19-21 minute 5K equivalent — comfortably in competitive recreational territory.':s<70?'Sub-19 minute 5K territory. You\'re faster than the large majority of runners.':s<85?'Club and regional competitive level. Genuinely fast.':'National-class speed. Elite territory.',
     metrics:{
       wa_avg:{label:'Speed Index (Average)',ex:'Your weighted average across your top recent runs on a 0-1400 scale. A 25:00 5K equivalent scores ~310. A competitive 18:00 5K scores ~800. Higher = faster.'},
       runs_used:{label:'Runs Contributing',ex:'How many of your runs contributed. Only your top 5 most recent are used, weighted so recent performances count more.'},
@@ -14,8 +15,9 @@ const SKILL_META = {
     }},
   endurance:{n:'Endurance',i:'🛤',c:'#68a878',s:'Distance capacity & pace holding',
     method:'Combines your longest single run (35%), average of top 3 longest (35%), and monthly volume (30%). Each compared against high human ceilings.',
-    ceiling:'100 requires 50km+ longest, 35km+ avg top 3, and 400km+ monthly volume. A 21km long run with 140km/month scores roughly 50-60.',
     tips:'Extend your weekly long run by 10% every 2-3 weeks. Adding one extra easy run per week also builds monthly volume.',
+    landmarks:[{at:15,label:'5K runs'},{at:30,label:'10K runs'},{at:45,label:'Half marathon'},{at:60,label:'Marathon'},{at:75,label:'50km+'},{at:90,label:'Ultra'}],
+    interpret:(s)=>s<10?'Early days. Your distance capacity is still developing.':s<25?'You\'re running regularly but mostly shorter distances. Your longest runs are in the 5-8km range.':s<40?'Solid recreational distance runner. Long runs around 10-15km with decent monthly volume.':s<55?'Strong distance capacity — half-marathon-length long runs with consistent weekly mileage.':s<70?'Serious endurance. Your long runs, volume, and pace sustainability are all well-developed.':s<85?'Marathon-plus endurance. Deep aerobic base built through months of high-volume training.':'Ultra-level endurance. Exceptional distance capacity across all measures.',
     metrics:{
       longest_km:{label:'Longest Run (km)',ex:'Your longest single run. Compared against 50km ceiling.'},
       avg_top3:{label:'Avg Top 3 Runs (km)',ex:'Average distance of your 3 longest — more reliable than a single outlier.'},
@@ -23,8 +25,9 @@ const SKILL_META = {
     }},
   ascent:{n:'Ascent',i:'⛰',c:'#a08060',s:'Climbing power',
     method:'Top climbing rate in m/km (40%), total elevation gain (30%), and hilly run frequency (30%).',
-    ceiling:'100 requires 80m/km on hilliest runs, 5000m+ total climbing, 70%+ hilly runs.',
     tips:'Seek hillier routes or add hill repeats. Even one hilly route per week makes a big difference.',
+    landmarks:[{at:15,label:'Flat roads'},{at:30,label:'Some hills'},{at:50,label:'Regular hills'},{at:65,label:'Hilly runner'},{at:80,label:'Mountain'},{at:92,label:'Alpine'}],
+    interpret:(s)=>s<10?'Mostly flat running. Very little elevation in your data.':s<25?'Occasional hills but mostly flat terrain. Your routes don\'t have much vertical challenge.':s<40?'You encounter hills regularly. Moderate climbing rate with decent total elevation.':s<55?'Genuinely hilly runner. You seek out elevation and your climbing numbers reflect it.':s<70?'Strong climber. Your elevation gain rate and total climbing are well above average.':s<85?'Mountain-level climbing. Steep grades and big vertical days are your norm.':'Alpine territory. Exceptional climbing power and volume.',
     metrics:{
       top_rate:{label:'Top Climbing Rate (m/km)',ex:'Avg elevation per km on your 3 hilliest runs. Flat=0-3, rolling=5-10, hilly=10-25, mountain=25+.'},
       total_climb:{label:'Total Elevation (m)',ex:'Sum of all elevation gain. Compared against 5,000m.'},
@@ -32,8 +35,9 @@ const SKILL_META = {
     }},
   stamina:{n:'Stamina',i:'♥',c:'#d06050',s:'Cardiac efficiency (needs HR)',
     method:'Efficiency Factor — pace relative to heart rate (65%) and lowest easy-run HR (35%). Requires HR monitor.',
-    ceiling:'100 requires EF above 2.2 and easy HR ~100bpm. EF 1.4-1.6 with easy HR ~140 is typical (score ~40-55).',
     tips:'Run truly easy (conversational pace) 80% of the time. Cardiac efficiency takes months — patience is key.',
+    landmarks:[{at:20,label:'Beginner EF'},{at:40,label:'Recreational'},{at:55,label:'Trained'},{at:70,label:'Well-trained'},{at:85,label:'Elite aerobic'}],
+    interpret:(s)=>s===0?'No heart rate data available. Wear an HR monitor to unlock this skill.':s<20?'Your cardiac efficiency is still developing. Pace-to-HR ratio suggests early aerobic base.':s<40?'Typical recreational runner efficiency. Your heart is working hard for the pace you produce.':s<55?'Good aerobic development. You produce meaningful speed at controlled heart rates.':s<70?'Strong cardiac efficiency. Your heart rate stays low relative to your pace — a sign of genuine fitness.':s<85?'Excellent aerobic engine. Your efficiency factor rivals serious competitive runners.':'Elite cardiac efficiency. Exceptional pace-to-HR ratio.',
     metrics:{
       top_ef:{label:'Efficiency Factor (Top 5)',ex:'Pace÷HR averaged across best 5. Higher=more speed per heartbeat. 1.0-1.2 beginner, 1.5-1.8 serious, 1.8+ elite.'},
       easy_hr:{label:'Easiest Run HR (bpm)',ex:'Lowest average HR from an easy run. Lower=more aerobic fitness.'},
@@ -41,16 +45,18 @@ const SKILL_META = {
     }},
   cadence:{n:'Cadence',i:'👟',c:'#9878b0',s:'Stride mechanics (needs sensor)',
     method:'Closeness to optimal ~182 spm (60%) and consistency across runs (40%). Requires cadence device.',
-    ceiling:'100 requires 180-184 spm with extremely low variance. Most recreational runners average 160-170, scoring 30-50.',
     tips:'Run to a metronome app at 5 spm above your current average. Shorter, quicker strides reduce impact.',
+    landmarks:[{at:20,label:'~160 spm'},{at:40,label:'~168 spm'},{at:55,label:'~174 spm'},{at:70,label:'~178 spm'},{at:85,label:'~182 spm'},{at:95,label:'Optimal'}],
+    interpret:(s)=>s===0?'No cadence data available. Use a cadence-capable watch or footpod to unlock this skill.':s<20?'Your cadence is on the lower end, suggesting longer, slower strides. Room to improve efficiency.':s<40?'Below optimal cadence range. You\'re likely overstriding slightly, which costs energy.':s<55?'Approaching good cadence territory. Your stride rate is getting closer to the efficient zone.':s<70?'Solid cadence near the optimal range. Your stride mechanics are reasonably efficient.':s<85?'Very good cadence and consistency. You\'re running with near-optimal stride efficiency.':'Textbook cadence. Biomechanically efficient with exceptional consistency.',
     metrics:{
       avg_cadence:{label:'Average Cadence (spm)',ex:'Mean cadence across runs with data. Sweet spot is 180-185. Score penalizes distance from 182.'},
       cadence_runs:{label:'Runs With Cadence Data',ex:'Runs with cadence recorded. Ensure your device records consistently.'},
     }},
   fortitude:{n:'Fortitude',i:'📅',c:'#7090a8',s:'Consistency & discipline',
     method:'Over the last 90 days: runs per week (30%), active weeks percentage (35%), weekly distance stability (35%).',
-    ceiling:'100 requires 7 runs/week, 100% active weeks, near-zero weekly variance. 4x/week with consistency scores ~55-65.',
     tips:'Frequency matters most. Adding even a short 20-minute easy run on an off day boosts your numbers significantly.',
+    landmarks:[{at:15,label:'1-2x/wk'},{at:30,label:'2-3x/wk'},{at:45,label:'3-4x/wk'},{at:60,label:'4-5x/wk'},{at:75,label:'5-6x/wk'},{at:90,label:'Daily'}],
+    interpret:(s)=>s<10?'Very inconsistent recently. Lots of missed weeks in the last 90 days.':s<25?'Running 1-2 times per week with some gaps. Building a regular habit would move this fast.':s<40?'Running 2-3 times per week with reasonable regularity. A solid foundation forming.':s<55?'Consistent 3-4 times per week with good weekly volume stability. Genuine discipline.':s<70?'Running 4-5 times per week with stable volume. You rarely miss and your weeks look consistent.':s<85?'Near-daily runner with very stable weekly patterns. Training is deeply embedded in your life.':'Daily running with machine-like consistency. Exceptional discipline.',
     metrics:{
       runs_per_week:{label:'Runs Per Week',ex:'Average runs/week over 90 days. Compared against 7/week.'},
       active_weeks_pct:{label:'Active Weeks (%)',ex:'Weeks with at least one run. Missing a full week drops this fast.'},
@@ -58,8 +64,9 @@ const SKILL_META = {
     }},
   resilience:{n:'Resilience',i:'🔁',c:'#c09050',s:'Recovery & fatigue resistance',
     method:'Pace degradation on consecutive-day runs (50%) and overall pace variance (50%).',
-    ceiling:'100 requires zero pace drop back-to-back and extremely low variance. Most see 3-8% drop, scoring 40-60.',
     tips:'Build back-to-back tolerance gradually. Sleep, nutrition, and hydration matter as much as training.',
+    landmarks:[{at:20,label:'Some drop-off'},{at:40,label:'Moderate'},{at:55,label:'Good bounce'},{at:70,label:'Strong'},{at:85,label:'Rubber band'},{at:95,label:'Iron'}],
+    interpret:(s)=>s<10?'Limited back-to-back data. You may not run on consecutive days often enough to measure.':s<25?'Noticeable pace drop on back-to-back days. Your body needs more recovery time between efforts.':s<40?'Some pace degradation when stacking days, but within normal range for most runners.':s<55?'Good recovery capacity. You handle consecutive-day running with moderate pace stability.':s<70?'Strong resilience. Minimal pace degradation even on back-to-back hard efforts.':s<85?'Excellent fatigue resistance. You bounce back from hard sessions remarkably fast.':'Elite recovery. Your body absorbs training load like a sponge.',
     metrics:{
       b2b_drop:{label:'Back-to-Back Pace Change',ex:'Pace degradation on consecutive days. 0.05 = 5% slower. Negative = faster (strong recovery).'},
       pace_cv:{label:'Pace Variance',ex:'How much pace varies across runs. Under 0.05 very consistent.'},
@@ -67,8 +74,9 @@ const SKILL_META = {
     }},
   ranging:{n:'Ranging',i:'🧭',c:'#58a0a8',s:'Route diversity & exploration',
     method:'Unique start locations (30%), route novelty vs total runs (30%), distance variety (20%), terrain diversity (20%).',
-    ceiling:'100 requires 15+ locations, 70%+ unique routes, 6+ distance brackets, all terrain types.',
     tips:'Run from a different start once a week. Vary distances. Seek one new route per week.',
+    landmarks:[{at:15,label:'Same loop'},{at:30,label:'A few routes'},{at:50,label:'Regular variety'},{at:65,label:'Explorer'},{at:80,label:'Adventurer'},{at:92,label:'Nomad'}],
+    interpret:(s)=>s<10?'Very low route variety. You\'re running the same route(s) almost exclusively.':s<25?'A handful of familiar routes. You have your go-to loops but don\'t branch out much.':s<40?'Moderate variety. You mix up routes and distances occasionally but have clear favorites.':s<55?'Good exploration. You run from multiple locations, vary distances, and seek new terrain.':s<70?'Strong route diversity. Your GPS map shows a wide web of explored territory.':s<85?'Exceptional exploration across locations, distances, and terrain types.':'Near-maximum diversity. You run everywhere, every distance, every terrain.',
     metrics:{
       locations:{label:'Unique Starting Locations',ex:'Distinct start areas (~1km grid). Different parks/neighborhoods increase this. Compared against 15.'},
       unique_routes:{label:'Unique Routes',ex:'Distinct routes by GPS path. Compared as ratio vs total runs.'},
@@ -110,7 +118,7 @@ const ARCHETYPES=[
 const TIERS=[{n:'Beginner',r:'0–10',d:'Just starting.',how:'Average of all 8 skills between 0–10. Skills at 0 (no sensor) still count.'},{n:'Developing',r:'10–22',d:'Building habits.',how:'Average 10–22. A few skills developing.'},{n:'Solid',r:'22–36',d:'Consistent history.',how:'Average 22–36. Running regularly for months.'},{n:'Strong',r:'36–50',d:'Serious training.',how:'Average 36–50. Multiple skills in 40-60 range.'},{n:'Competitive',r:'50–65',d:'Club level.',how:'Average 50–65. Stronger than most runners.'},{n:'Elite',r:'65–82',d:'Exceptional.',how:'Average 65–82. Years of structured training.'},{n:'World-Class',r:'82+',d:'Near human limits.',how:'Average 82+. Every skill near ceiling.'}];
 const MODS=[{n:'Consistent',d:'Steady week after week.',how:'Fortitude > 55 AND weekly volume CV < 0.4.'},{n:'Streaky',d:'Peaks then gaps.',how:'Weekly volume CV > 0.6.'},{n:'Improving',d:'Trending up.',how:'Recent scores show upward movement.'},{n:"Plateau'd",d:'Stable. Needs a shift.',how:'Scores in narrow band for extended period.'},{n:'Comeback',d:'Reversing regression.',how:'Scores rising after decline.'},{n:'Fresh',d:'Under 20 scored runs.',how:'< 20 runs scored. Limited data.'},{n:'Veteran',d:'Hundreds of runs.',how:'200+ runs AND fortitude > 55.'}];
 
-// ===== PROFILES (horoscope-style per archetype) =====
+// ===== PROFILES =====
 const CP={
 speed_demon:{identity:"You live for the feeling of legs turning over fast. Speed is your language — you don't just run, you attack distance.",howYouRun:"You gravitate toward shorter, sharper efforts. You feel most alive when the pace drops below comfortable.",strengths:"Raw velocity. Your Speed Index scores are your calling card.",watchFor:"Speed without endurance base can plateau. Don't neglect slow miles."},
 long_hauler:{identity:"Distance is your habitat. While others calculate pace, you calculate how far you can go.",howYouRun:"You favor longer efforts. You hold pace remarkably well — your 10th km looks like your 2nd.",strengths:"Endurance capacity and pace sustainability over distance.",watchFor:"Long slow miles alone won't develop top-end speed. Add speed work once a week."},
@@ -142,6 +150,23 @@ workhorse:{identity:"You outwork everyone. Might not be fastest, but you'll be l
 // ===== RADAR =====
 function Radar({skills,size}){const S=size,cx=S/2,cy=S/2,r=S*.36,st=(2*Math.PI)/8;const pt=(i,v)=>({x:cx+(v/100)*r*Math.cos(st*i-Math.PI/2),y:cy+(v/100)*r*Math.sin(st*i-Math.PI/2)});return(<svg width={S} height={S} viewBox={`0 0 ${S} ${S}`} style={{display:'block',margin:'0 auto'}}>{[25,50,75,100].map(v=><polygon key={v} points={SK.map((_,i)=>{const p=pt(i,v);return p.x+','+p.y}).join(' ')} fill="none" stroke="rgba(170,140,80,.06)" strokeWidth=".5"/>)}{SK.map((_,i)=>{const p=pt(i,100);return<line key={i} x1={cx} y1={cy} x2={p.x.toFixed(1)} y2={p.y.toFixed(1)} stroke="rgba(170,140,80,.04)" strokeWidth=".5"/>})}<polygon points={SK.map((k,i)=>{const p=pt(i,skills?.[k]?.score||skills?.[k]||0);return p.x+','+p.y}).join(' ')} fill="rgba(232,192,80,.08)" stroke="rgba(232,192,80,.35)" strokeWidth="1.5"/>{SK.map((k,i)=>{const p=pt(i,skills?.[k]?.score||skills?.[k]||0);return<circle key={k} cx={p.x.toFixed(1)} cy={p.y.toFixed(1)} r="3" fill={SKILL_META[k].c} stroke="rgba(14,11,8,.8)" strokeWidth=".8"/>})}{SK.map((k,i)=>{const p=pt(i,120);return<text key={k} x={p.x.toFixed(1)} y={(p.y+1).toFixed(1)} textAnchor="middle" dominantBaseline="middle" style={{font:"600 7px 'Cinzel',serif",fill:'rgba(170,140,80,.35)',textTransform:'uppercase',letterSpacing:2}}>{SKILL_META[k].n.slice(0,3)}</text>})}</svg>);}
 
+// ===== LANDMARK BAR =====
+function LandmarkBar({score,landmarks,color}){
+  return<div style={{margin:'16px 0 20px'}}>
+    <div style={{position:'relative',height:32,background:'rgba(60,48,30,.4)',borderRadius:2,border:'1px solid rgba(100,80,50,.12)',overflow:'visible'}}>
+      {/* Fill */}
+      <div style={{position:'absolute',left:0,top:0,bottom:0,width:Math.min(score,100)+'%',background:`linear-gradient(90deg,${color}33,${color}88)`,borderRadius:'2px 0 0 2px',transition:'width 1s ease'}}/>
+      {/* Landmarks */}
+      {landmarks.map((lm,i)=><div key={i} style={{position:'absolute',left:lm.at+'%',top:0,bottom:0,display:'flex',flexDirection:'column',alignItems:'center',transform:'translateX(-50%)'}}>
+        <div style={{width:1,height:'100%',background:'rgba(170,140,80,.15)'}}/>
+        <span style={{fontSize:7,fontFamily:"'Cinzel',serif",color:score>=lm.at?'#b0a088':'#4a3e32',textTransform:'uppercase',letterSpacing:1,marginTop:3,whiteSpace:'nowrap'}}>{lm.label}</span>
+      </div>)}
+      {/* Your dot */}
+      <div style={{position:'absolute',left:`calc(${Math.min(score,100)}% - 5px)`,top:'50%',transform:'translateY(-50%)',width:10,height:10,borderRadius:'50%',background:color,border:'2px solid #110e0a',boxShadow:`0 0 8px ${color}60`,zIndex:2}}/>
+    </div>
+  </div>;
+}
+
 // ===== STYLES =====
 const Y={page:{minHeight:'100vh',background:'#110e0a',color:'#ddd0b8',fontFamily:"'Cormorant Garamond',serif",maxWidth:430,margin:'0 auto',paddingBottom:90},scr:{padding:'24px 16px 20px'},card:{background:'rgba(30,25,19,.9)',border:'1px solid rgba(170,140,80,.09)',borderRadius:3,padding:'14px 16px',marginBottom:10,position:'relative'},ci:{position:'absolute',inset:2,border:'1px solid rgba(232,192,80,.04)',borderRadius:2,pointerEvents:'none'},glow:{borderColor:'rgba(170,140,80,.18)',boxShadow:'0 0 30px rgba(200,160,80,.025)'},accent:{borderLeft:'2px solid rgba(232,192,80,.2)'},active:{borderLeft:'2px solid rgba(232,192,80,.3)'},sl:{fontFamily:"'Cinzel',serif",fontSize:9,fontWeight:600,color:'#685e4e',textTransform:'uppercase',letterSpacing:4,marginBottom:5},bn:{fontSize:26,fontWeight:600,fontFamily:"'Cormorant Garamond',serif"},bns:{fontSize:16,fontWeight:500,fontFamily:"'Cormorant Garamond',serif"},tg:{fontFamily:"'Cinzel',serif",fontSize:7.5,fontWeight:600,color:'#e8c050',background:'rgba(232,192,80,.1)',padding:'3px 10px',borderRadius:2,textTransform:'uppercase',letterSpacing:2,border:'1px solid rgba(232,192,80,.12)',marginLeft:8},tgs:{fontFamily:"'Cinzel',serif",fontSize:7,fontWeight:500,color:'#685e4e',background:'rgba(170,140,80,.05)',padding:'2px 7px',borderRadius:2,textTransform:'uppercase',letterSpacing:1.5},tl:{fontSize:14,color:'#685e4e',fontStyle:'italic',marginTop:5},bd:{fontSize:13.5,lineHeight:1.7,color:'#b0a088',fontFamily:"'DM Sans',sans-serif"},xl:{fontFamily:"'Cinzel',serif",fontSize:8,fontWeight:600,color:'#685e4e',textTransform:'uppercase',letterSpacing:1.5},dv:{display:'flex',alignItems:'center',gap:14,margin:'28px 0 16px'},dvl:{flex:1,height:1,background:'linear-gradient(to right,transparent,rgba(170,140,80,.1),transparent)'},dvt:{fontFamily:"'Cinzel',serif",fontSize:8,fontWeight:600,color:'#685e4e',textTransform:'uppercase',letterSpacing:5},sml:{fontFamily:"'Cinzel',serif",fontSize:10,fontWeight:600,color:'#b0a088',textTransform:'uppercase',letterSpacing:2},mg:{fontFamily:"'IBM Plex Mono',monospace",fontSize:12,color:'#e8c050'},mxl:{fontFamily:"'IBM Plex Mono',monospace",fontSize:24,fontWeight:300,color:'#e8c050'},bt:{height:5,background:'rgba(60,48,30,.6)',borderRadius:1,marginTop:4,border:'1px solid rgba(100,80,50,.12)',overflow:'hidden'},mt:{fontSize:10,lineHeight:1.3,color:'#685e4e',fontFamily:"'DM Sans',sans-serif"},nw:{fontFamily:"'Cinzel',serif",fontSize:7,fontWeight:600,color:'#e8c050',background:'rgba(232,192,80,.1)',padding:'2px 7px',borderRadius:2,letterSpacing:2},se:{fontSize:11,lineHeight:1.6,color:'#685e4e',marginTop:3,paddingLeft:4,borderLeft:'2px solid rgba(232,192,80,.06)',fontFamily:"'DM Sans',sans-serif"},nav:{position:'fixed',bottom:0,left:0,right:0,zIndex:50,background:'rgba(14,11,8,.96)',backdropFilter:'blur(16px)',borderTop:'1px solid rgba(170,140,80,.05)',display:'flex',justifyContent:'space-around',padding:'7px 0 max(10px,env(safe-area-inset-bottom))',maxWidth:430,margin:'0 auto'},nb:{display:'flex',flexDirection:'column',alignItems:'center',gap:3,padding:'4px 14px',border:'none',background:'none',cursor:'pointer',color:'#685e4e',transition:'color .2s',fontFamily:"'Cinzel',serif"},nba:{color:'#e8c050'},nl:{fontSize:7,fontWeight:600,letterSpacing:2.5,textTransform:'uppercase'},syncBtn:{display:'block',width:'100%',padding:'14px 24px',borderRadius:3,border:'none',cursor:'pointer',background:'rgba(232,192,80,.1)',color:'#e8c050',fontFamily:"'Cinzel',serif",fontSize:10,fontWeight:600,letterSpacing:2,textTransform:'uppercase',marginTop:12},bb:{background:'none',border:'none',color:'#685e4e',fontSize:20,cursor:'pointer',fontFamily:"'Cormorant Garamond',serif",padding:'4px 8px'},gear:{background:'none',border:'none',color:'#685e4e',fontSize:18,cursor:'pointer',padding:'4px 8px'},overlay:{position:'fixed',inset:0,zIndex:100,background:'rgba(0,0,0,.7)',display:'flex',alignItems:'flex-end',justifyContent:'center'},panel:{background:'#1a1614',borderTop:'1px solid rgba(170,140,80,.1)',borderRadius:'16px 16px 0 0',padding:'20px 16px max(20px,env(safe-area-inset-bottom))',width:'100%',maxWidth:430},danger:{background:'rgba(192,64,64,.1)',border:'1px solid rgba(192,64,64,.15)',borderRadius:3,padding:'10px 16px',color:'#c04040',fontSize:12,fontFamily:"'DM Sans',sans-serif",cursor:'pointer',textAlign:'left',width:'100%',marginTop:6}};
 
@@ -159,6 +184,7 @@ export default function Dashboard(){
   const[confirmAction,setConfirmAction]=useState(null);
   const[runs,setRuns]=useState(null);
   const[runsPage,setRunsPage]=useState(1);
+  const[showMethod,setShowMethod]=useState(false);
 
   useEffect(()=>{fetch('/api/user').then(r=>{if(r.status===401){window.location.href='/';return null}return r.json()}).then(d=>{if(d)setData(d)}).catch(()=>{})},[]);
 
@@ -184,7 +210,14 @@ export default function Dashboard(){
 
   const Div=({text})=><div style={Y.dv}><div style={Y.dvl}/><span style={Y.dvt}>{text}</span><div style={Y.dvl}/></div>;
   const Card=({children,glow,accent,active:a,style,onClick})=><div style={{...Y.card,...(glow?Y.glow:{}),...(accent?Y.accent:{}),...(a?Y.active:{}),position:'relative',...style}} onClick={onClick}><div style={Y.ci}/>{children}</div>;
-  const Prof=({profile,tip})=><>{profile?.identity&&<Card glow><p style={Y.bd}>{profile.identity}</p></Card>}{profile?.howYouRun&&<Card><div style={Y.xl}>How You Run</div><p style={{...Y.bd,marginTop:6}}>{profile.howYouRun}</p></Card>}{profile?.strengths&&<Card><div style={Y.xl}>Your Strengths</div><p style={{...Y.bd,marginTop:6}}>{profile.strengths}</p></Card>}{profile?.watchFor&&<Card accent><div style={{...Y.xl,color:'#e8c050'}}>Watch For</div><p style={{...Y.bd,marginTop:6}}>{profile.watchFor}</p></Card>}{tip&&<Card accent><div style={{...Y.xl,color:'#e8c050'}}>What Would Level You Up</div><p style={{...Y.bd,marginTop:6}}>{tip}</p></Card>}</>;
+
+  // Option B: Two-card profile — portrait + growth
+  const Prof=({profile,tip})=>{
+    const p=profile||{};
+    const portrait=[p.identity,p.howYouRun,p.strengths].filter(Boolean).join(' ');
+    const growth=[p.watchFor,tip].filter(Boolean).join(' ');
+    return<>{portrait&&<Card glow><p style={Y.bd}>{portrait}</p></Card>}{growth&&<Card accent><div style={{...Y.xl,color:'#e8c050',marginBottom:6}}>What's Next</div><p style={Y.bd}>{growth}</p></Card>}</>;
+  };
 
   const SBar=({k,score,onClick,showVsAvg})=>{const avg=bld?.avg||0;const diff=score-avg;const t=trends?.[k];return<div style={{marginBottom:14,cursor:onClick?'pointer':undefined}} onClick={onClick}><div style={{display:'flex',justifyContent:'space-between',marginBottom:4,alignItems:'center'}}><span style={Y.sml}>{SKILL_META[k].i} {SKILL_META[k].n}</span><div style={{display:'flex',alignItems:'center',gap:6}}>{showVsAvg&&Math.abs(diff)>3&&<span style={{fontSize:9,fontFamily:"'DM Sans',sans-serif",color:diff>0?'#50a060':'#c04040'}}>{diff>0?'▲':'▼'} {diff>0?'above':'below'} avg</span>}{!showVsAvg&&t&&Math.abs(t.delta)>0.5&&<span style={{fontSize:9,fontFamily:"'DM Sans',sans-serif",color:t.delta>0?'#50a060':'#c04040'}}>{t.delta>0?'▲':'▼'} {Math.abs(t.delta).toFixed(1)}</span>}<span style={Y.mg}>{Math.round(score*10)/10}</span></div></div><div style={Y.bt}><div style={{height:'100%',width:score+'%',background:`linear-gradient(90deg,${SKILL_META[k].c}44,${SKILL_META[k].c})`,transition:'width 1s ease'}}/></div></div>};
 
@@ -195,7 +228,7 @@ export default function Dashboard(){
 
   // ===== HOME =====
   const Home=()=>!hasBuild?(
-    <div style={{textAlign:'center',paddingTop:40}}><h1 style={{fontFamily:"'Cinzel',serif",fontSize:24,color:'#e8c050',letterSpacing:4}}>SOLESTRIDE</h1><p style={{color:'#685e4e',margin:'8px 0 24px'}}>Welcome, {data.user?.strava_firstname}.</p><Card glow style={{textAlign:'center',padding:'24px 16px'}}><p style={{...Y.bd,marginBottom:16}}>Import your full Strava run history.</p>{syncing?<p style={{...Y.mt}}>{syncMsg}</p>:<button style={{...Y.syncBtn,background:'linear-gradient(135deg,#fc4c02,#e84400)',color:'#fff',fontSize:14,fontFamily:"'DM Sans',sans-serif"}} onClick={doSync}>Sync with Strava</button>}</Card></div>
+    <div style={{textAlign:'center',paddingTop:40}}><h1 style={{fontFamily:"'Cinzel',serif",fontSize:24,color:'#e8c050',letterSpacing:4}}>SOLESTRIDE</h1><p style={{color:'#685e4e',margin:'8px 0 24px'}}>Welcome, {data.user?.strava_firstname}.</p><Card glow style={{textAlign:'center',padding:'24px 16px'}}><p style={{...Y.bd,marginBottom:16}}>Import your full Strava run history.</p>{syncing?<p style={Y.mt}>{syncMsg}</p>:<button style={{...Y.syncBtn,background:'linear-gradient(135deg,#fc4c02,#e84400)',color:'#fff',fontSize:14,fontFamily:"'DM Sans',sans-serif"}} onClick={doSync}>Sync with Strava</button>}</Card></div>
   ):(
     <div>
       <div style={{display:'flex',justifyContent:'space-between',alignItems:'flex-start'}}><div><div style={Y.sl}>Active Build</div><div style={{display:'flex',alignItems:'baseline',flexWrap:'wrap'}}><h1 style={Y.bn}>{bld.fullName}</h1><span style={Y.tg}>{bld.modifier}</span></div><p style={Y.tl}>{bld.tierName} tier · {bld.archetypeName} archetype</p></div><button style={Y.gear} onClick={()=>setShowSettings(true)}>⚙</button></div>
@@ -213,21 +246,47 @@ export default function Dashboard(){
     <div style={{display:'flex',justifyContent:'space-between',alignItems:'flex-start'}}><div><div style={Y.sl}>Character Sheet</div><h1 style={{fontSize:23,fontWeight:500,marginBottom:14}}>Skill Profile</h1></div><button style={Y.gear} onClick={()=>setShowSettings(true)}>⚙</button></div>
     <Card style={{marginBottom:16}}><p style={{...Y.bd,color:'#685e4e',fontSize:12}}>Scored 0–100 against universal human ceilings. {trends?'Arrows show 30-day trend.':'Re-sync to see trends.'} Tap any skill for breakdown.</p></Card>
     <Radar skills={sk} size={260}/><Div text="All Skills"/>
-    {SK.map(k=>{const s=sk[k]?.score||0;const t=trends?.[k];return<Card key={k} style={{cursor:'pointer'}} onClick={()=>{setDetail(k);setTab('detail')}}><div style={{display:'flex',justifyContent:'space-between',alignItems:'flex-start',marginBottom:5}}><div style={{flex:1}}><span style={Y.sml}>{SKILL_META[k].i} {SKILL_META[k].n}</span><p style={{fontSize:11,color:'#685e4e',marginTop:2,fontFamily:"'DM Sans',sans-serif"}}>{SKILL_META[k].s}</p></div><div style={{textAlign:'right'}}><span style={Y.mxl}>{Math.round(s)}</span>{t&&Math.abs(t.delta)>0.5&&<div style={{fontSize:9,fontFamily:"'DM Sans',sans-serif",color:t.delta>0?'#50a060':'#c04040',marginTop:2}}>{t.delta>0?'▲':'▼'} {Math.abs(t.delta).toFixed(1)} in 30d</div>}</div></div><div style={{...Y.bt,height:5}}><div style={{height:'100%',width:s+'%',background:`linear-gradient(90deg,${SKILL_META[k].c}44,${SKILL_META[k].c})`}}/></div></Card>})}
+    {SK.map(k=>{const s=sk[k]?.score||0;const t=trends?.[k];return<Card key={k} style={{cursor:'pointer'}} onClick={()=>{setDetail(k);setTab('detail');setShowMethod(false)}}><div style={{display:'flex',justifyContent:'space-between',alignItems:'flex-start',marginBottom:5}}><div style={{flex:1}}><span style={Y.sml}>{SKILL_META[k].i} {SKILL_META[k].n}</span><p style={{fontSize:11,color:'#685e4e',marginTop:2,fontFamily:"'DM Sans',sans-serif"}}>{SKILL_META[k].s}</p></div><div style={{textAlign:'right'}}><span style={Y.mxl}>{Math.round(s)}</span>{t&&Math.abs(t.delta)>0.5&&<div style={{fontSize:9,fontFamily:"'DM Sans',sans-serif",color:t.delta>0?'#50a060':'#c04040',marginTop:2}}>{t.delta>0?'▲':'▼'} {Math.abs(t.delta).toFixed(1)} in 30d</div>}</div></div><div style={{...Y.bt,height:5}}><div style={{height:'100%',width:s+'%',background:`linear-gradient(90deg,${SKILL_META[k].c}44,${SKILL_META[k].c})`}}/></div></Card>})}
   </div>;
 
-  // ===== DETAIL =====
-  const Detail=()=>{const k=detail,m=SKILL_META[k],s=sk[k]?.score||0,d=sk[k]?.detail||{},t=trends?.[k];const mkeys=Object.keys(d).filter(x=>x!=='reason'&&x!=='requires_hr'&&x!=='requires_sensor');return<div>
+  // ===== DETAIL (Option C: sentence + landmark bar + numbers + tips, methodology collapsible) =====
+  const Detail=()=>{const k=detail,m=SKILL_META[k],s=sk[k]?.score||0,d=sk[k]?.detail||{},t=trends?.[k];const mkeys=Object.keys(d).filter(x=>x!=='reason'&&x!=='requires_hr'&&x!=='requires_sensor');
+  const interpretation=typeof m.interpret==='function'?m.interpret(s):'';
+  return<div>
     <div style={{display:'flex',alignItems:'center',gap:10,marginBottom:20}}><button style={Y.bb} onClick={()=>setTab('skills')}>←</button><span style={{fontSize:23,fontWeight:500}}>{m.i} {m.n}</span></div>
-    <Card glow><div style={Y.xl}>Current Rating</div><div style={{display:'flex',alignItems:'baseline',gap:10}}><div style={{fontFamily:"'IBM Plex Mono',monospace",fontSize:44,fontWeight:300,color:'#e8c050',marginTop:4}}>{s.toFixed?s.toFixed(1):s}<span style={{fontSize:16,color:'#685e4e'}}> / 100</span></div>{t&&Math.abs(t.delta)>0.5&&<span style={{fontSize:12,fontFamily:"'DM Sans',sans-serif",color:t.delta>0?'#50a060':'#c04040'}}>{t.delta>0?'▲':'▼'} {Math.abs(t.delta).toFixed(1)}</span>}</div><div style={{...Y.bt,height:8,margin:'12px 0'}}><div style={{height:'100%',width:s+'%',background:`linear-gradient(90deg,${m.c}44,${m.c})`}}/></div></Card>
-    <Card><div style={{...Y.xl,marginBottom:8}}>How This Skill Is Calculated</div><p style={Y.bd}>{m.method}</p></Card>
-    <Card><div style={{...Y.xl,marginBottom:8}}>What 100 Looks Like</div><p style={Y.bd}>{m.ceiling}</p></Card>
-    {mkeys.length>0&&<><Div text="Your Numbers"/>{mkeys.map(key=>{const meta=m.metrics?.[key];const val=d[key];return<Card key={key}><div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:meta?.ex?6:0}}><span style={{...Y.bd,flex:1}}>{meta?.label||key.replace(/_/g,' ')}</span><span style={{...Y.mg,fontSize:14}}>{typeof val==='number'?Math.round(val*100)/100:val}</span></div>{meta?.ex&&<p style={Y.se}>{meta.ex}</p>}</Card>})}</>}
+
+    {/* Score + trend + interpretation as one unit */}
+    <Card glow>
+      <div style={{display:'flex',alignItems:'baseline',gap:10}}>
+        <div style={{fontFamily:"'IBM Plex Mono',monospace",fontSize:44,fontWeight:300,color:'#e8c050'}}>{s.toFixed?s.toFixed(1):s}<span style={{fontSize:16,color:'#685e4e'}}> / 100</span></div>
+        {t&&Math.abs(t.delta)>0.5&&<span style={{fontSize:12,fontFamily:"'DM Sans',sans-serif",color:t.delta>0?'#50a060':'#c04040'}}>{t.delta>0?'▲':'▼'} {Math.abs(t.delta).toFixed(1)}</span>}
+      </div>
+      {interpretation&&<p style={{...Y.bd,marginTop:10}}>{interpretation}</p>}
+      {/* Landmark bar */}
+      {m.landmarks&&<LandmarkBar score={s} landmarks={m.landmarks} color={m.c}/>}
+    </Card>
+
+    {/* Your Numbers */}
+    {mkeys.length>0&&<><Div text="Your Numbers"/>
+      {mkeys.map(key=>{const meta=m.metrics?.[key];const val=d[key];return<Card key={key}>
+        <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:meta?.ex?6:0}}>
+          <span style={{...Y.bd,flex:1}}>{meta?.label||key.replace(/_/g,' ')}</span>
+          <span style={{...Y.mg,fontSize:14}}>{typeof val==='number'?Math.round(val*100)/100:val}</span>
+        </div>
+        {meta?.ex&&<p style={Y.se}>{meta.ex}</p>}
+      </Card>})}
+    </>}
+
+    {/* Improvement tips */}
     <Card accent><div style={{...Y.xl,color:'#e8c050',marginBottom:6}}>How to Improve</div><p style={Y.bd}>{m.tips}</p></Card>
+
+    {/* Methodology collapsible */}
+    <button onClick={()=>setShowMethod(!showMethod)} style={{background:'none',border:'none',cursor:'pointer',display:'flex',alignItems:'center',gap:6,padding:'12px 0',color:'#685e4e',fontFamily:"'DM Sans',sans-serif",fontSize:11}}><span style={{transform:showMethod?'rotate(90deg)':'rotate(0deg)',transition:'transform .2s',display:'inline-block'}}>▸</span> How this skill is calculated</button>
+    {showMethod&&<Card><p style={Y.bd}>{m.method}</p></Card>}
   </div>};
 
   // ===== HISTORY =====
-  const History=()=>{if(histSel!==null){const e=history[histSel];const a=ARCHETYPES.find(x=>x.id===e.archetype);return<div><div style={{display:'flex',alignItems:'center',gap:10,marginBottom:20}}><button style={Y.bb} onClick={()=>setHistSel(null)}>←</button><span style={{fontSize:23,fontWeight:500}}>{e.fullName}</span></div><Card glow><div style={{display:'flex',alignItems:'center',gap:6,marginBottom:6}}><span style={Y.tgs}>{e.modifier}</span><span style={Y.mt}>{fmtDate(e.date)}</span></div><div style={{display:'flex',justifyContent:'space-between',alignItems:'baseline'}}><span style={Y.bns}>{e.tierName} · {e.archetypeName}</span><span style={Y.mg}>{e.avg} avg</span></div><div style={Y.mt}>After {e.runCount} runs</div></Card><Prof profile={e.profile||CP[e.archetype]} tip={e.levelUpTip}/></div>}
+  const History=()=>{if(histSel!==null){const e=history[histSel];return<div><div style={{display:'flex',alignItems:'center',gap:10,marginBottom:20}}><button style={Y.bb} onClick={()=>setHistSel(null)}>←</button><span style={{fontSize:23,fontWeight:500}}>{e.fullName}</span></div><Card glow><div style={{display:'flex',alignItems:'center',gap:6,marginBottom:6}}><span style={Y.tgs}>{e.modifier}</span><span style={Y.mt}>{fmtDate(e.date)}</span></div><div style={{display:'flex',justifyContent:'space-between',alignItems:'baseline'}}><span style={Y.bns}>{e.tierName} · {e.archetypeName}</span><span style={Y.mg}>{e.avg} avg</span></div><div style={Y.mt}>After {e.runCount} runs</div></Card><Prof profile={e.profile||CP[e.archetype]} tip={e.levelUpTip}/></div>}
   return<div><div style={Y.sl}>Chronicle</div><h1 style={{fontSize:23,fontWeight:500,marginBottom:14}}>Build History</h1><Card style={{marginBottom:14}}><p style={{...Y.bd,color:'#685e4e',fontSize:12}}>Every archetype, tier, or modifier change is recorded. Tap any entry to explore that build.</p></Card>
   {history.length===0&&<Card><p style={Y.bd}>No history yet. Sync with Strava to reconstruct your timeline.</p></Card>}
   {history.map((b,i)=><Card key={i} active={i===0} style={{cursor:'pointer'}} onClick={()=>setHistSel(i)}><div style={{display:'flex',alignItems:'center',gap:6,marginBottom:4}}>{i===0&&<span style={Y.nw}>NOW</span>}<span style={Y.mt}>{fmtDate(b.date)}</span><span style={Y.tgs}>{b.modifier}</span></div><div style={{display:'flex',alignItems:'baseline',gap:8}}><span style={{fontSize:28}}>{AE[b.archetype]||'◇'}</span><div><h3 style={Y.bns}>{b.fullName}</h3><span style={Y.mt}>{b.avg} avg · {b.runCount} runs</span></div></div></Card>)}</div>};
